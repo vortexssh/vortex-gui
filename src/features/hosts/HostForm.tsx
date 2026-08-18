@@ -179,8 +179,8 @@ export function HostForm({ open, host, linked, onClose, onSave, saving }: HostFo
             value={authType}
             onChange={(e) => setAuthType(e.target.value as AuthType)}
           >
-            <option value="password">password</option>
-            <option value="private_key">private_key (PEM)</option>
+            <option value="password">password (optional)</option>
+            <option value="private_key">private_key (PEM or path)</option>
           </select>
         </label>
         <div className="col-span-2">
@@ -188,9 +188,13 @@ export function HostForm({ open, host, linked, onClose, onSave, saving }: HostFo
             label={
               host?.hasSecret
                 ? 'Replace secret (leave empty to keep existing — never sent to Core)'
-                : 'Secret (optional, stored locally only)'
+                : 'Secret (optional)'
             }
-            placeholder={authType === 'private_key' ? '-----BEGIN OPENSSH PRIVATE KEY-----' : 'password'}
+            placeholder={
+              authType === 'private_key'
+                ? 'PEM or ~/.ssh/id_ed25519 — empty = agent / default keys / prompt'
+                : 'password — empty = ssh-agent / ~/.ssh / interactive prompt'
+            }
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
             autoComplete="off"
@@ -289,8 +293,8 @@ export function HostForm({ open, host, linked, onClose, onSave, saving }: HostFo
         ) : null}
 
         <p className="col-span-2 font-mono text-[11px] text-muted">
-          SSH password / private key stay on this machine. Core receives metadata only (name, IP,
-          port, username, tags, proxy, billing) — never secrets.
+          Password is optional. Empty secret uses ssh-agent, keys in ~/.ssh, then a manual prompt in
+          the terminal (keyboard-interactive). Secrets stay on this machine — never Core.
         </p>
       </form>
     </Modal>

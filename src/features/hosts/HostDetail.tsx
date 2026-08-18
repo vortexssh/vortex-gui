@@ -76,7 +76,7 @@ export function HostDetail({
       </div>
 
       <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4">
-        <Metric label="secret" value={host.hasSecret ? host.authType ?? 'yes' : 'none'} />
+        <Metric label="secret" value={host.hasSecret ? host.authType ?? 'yes' : 'agent / prompt'} />
         <Metric label="mode" value={host.proxyEnabled ? 'vortex proxy' : 'direct ssh'} />
         <Metric label="agent" value={host.agentId ? host.agentId.slice(0, 8) : '—'} />
         <Metric

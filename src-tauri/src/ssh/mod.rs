@@ -1,3 +1,4 @@
+mod auth;
 mod proxy;
 mod session;
 

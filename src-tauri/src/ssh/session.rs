@@ -5,13 +5,12 @@ use std::time::Duration;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as B64;
 use russh::client;
-use russh::keys::{decode_secret_key, PrivateKeyWithHashAlg};
 use russh::{ChannelMsg, Disconnect};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, watch};
 
-use crate::db::{AuthType, Host, Secret};
+use crate::db::{Host, Secret};
 use crate::error::AppError;
 
 use super::proxy::dial_proxy;
@@ -24,7 +23,7 @@ pub struct LiveSession {
 
 pub type SessionMap = HashMap<String, LiveSession>;
 
-struct IgnoreHostKey;
+pub(super) struct IgnoreHostKey;
 
 impl client::Handler for IgnoreHostKey {
     type Error = russh::Error;
@@ -141,7 +140,16 @@ async fn run_session(
         client::connect(config, (addr, port), IgnoreHostKey).await?
     };
 
-    authenticate(&mut handle, &params.host.user, params.secret.as_ref()).await?;
+    super::auth::authenticate(
+        &mut handle,
+        &params.host.user,
+        params.secret.as_ref(),
+        &mut stdin_rx,
+        &mut close_rx,
+        &app,
+        &session_id,
+    )
+    .await?;
 
     let mut channel = handle.channel_open_session().await?;
     let cols = if params.cols == 0 { 80 } else { params.cols };
@@ -190,7 +198,7 @@ async fn run_session(
     Ok(())
 }
 
-fn emit_data(app: &AppHandle, session_id: &str, data: &[u8]) {
+pub(super) fn emit_data(app: &AppHandle, session_id: &str, data: &[u8]) {
     if data.is_empty() {
         return;
     }
@@ -201,46 +209,6 @@ fn emit_data(app: &AppHandle, session_id: &str, data: &[u8]) {
             data: B64.encode(data),
         },
     );
-}
-
-async fn authenticate(
-    handle: &mut client::Handle<IgnoreHostKey>,
-    user: &str,
-    secret: Option<&Secret>,
-) -> Result<(), AppError> {
-    let user = if user.is_empty() { "root" } else { user };
-
-    match secret {
-        Some(sec) if !sec.payload.trim().is_empty() => match sec.auth_type {
-            AuthType::Password => {
-                let auth = handle.authenticate_password(user, &sec.payload).await?;
-                if !auth.success() {
-                    return Err(AppError::msg("SSH password authentication failed"));
-                }
-            }
-            AuthType::PrivateKey => {
-                let key = decode_secret_key(&sec.payload, None)
-                    .map_err(|e| AppError::msg(format!("parse private key: {e}")))?;
-                let hash = handle.best_supported_rsa_hash().await?.flatten();
-                let key = PrivateKeyWithHashAlg::new(Arc::new(key), hash);
-                let auth = handle.authenticate_publickey(user, key).await?;
-                if !auth.success() {
-                    return Err(AppError::msg("SSH public-key authentication failed"));
-                }
-            }
-        },
-        _ => {
-            // Optional keyboard-interactive / none — usually fails without a secret.
-            let none = handle.authenticate_none(user).await?;
-            if none.success() {
-                return Ok(());
-            }
-            return Err(AppError::msg(
-                "no local secret — add a password or PEM key in the host editor",
-            ));
-        }
-    }
-    Ok(())
 }
 
 #[allow(dead_code)]
