@@ -81,6 +81,52 @@ pub async fn authenticate(
     ))
 }
 
+/// Same as [`authenticate`] but never prompts (no PTY). Used by SFTP.
+pub async fn authenticate_noninteractive(
+    handle: &mut client::Handle<IgnoreHostKey>,
+    user: &str,
+    secret: Option<&Secret>,
+) -> Result<(), AppError> {
+    let user = if user.is_empty() { "root" } else { user };
+
+    if let Some(sec) = secret.filter(|s| !s.payload.trim().is_empty()) {
+        match sec.auth_type {
+            AuthType::Password => {
+                let auth = handle.authenticate_password(user, sec.payload.trim()).await?;
+                if auth.success() {
+                    return Ok(());
+                }
+            }
+            AuthType::PrivateKey => {
+                let key = load_identity(sec.payload.trim())?;
+                if try_private_key(handle, user, key).await? {
+                    return Ok(());
+                }
+                return Err(AppError::msg("SSH public-key authentication failed"));
+            }
+        }
+    }
+
+    let probe = handle.authenticate_none(user).await?;
+    if probe.success() {
+        return Ok(());
+    }
+    let remaining = remaining_of(&probe);
+
+    if remaining.is_empty() || remaining.contains(&MethodKind::PublicKey) {
+        if try_agent(handle, user).await? {
+            return Ok(());
+        }
+        if try_default_files(handle, user).await? {
+            return Ok(());
+        }
+    }
+
+    Err(AppError::msg(
+        "SFTP auth failed — save a password or key on the host, or load ssh-agent / ~/.ssh",
+    ))
+}
+
 enum KbdResult {
     Success,
     Failure(MethodSet),

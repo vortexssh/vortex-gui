@@ -1,4 +1,4 @@
-import { Pencil, Plus, Trash2, TerminalSquare } from 'lucide-react'
+import { Folder, Pencil, Plus, Trash2, TerminalSquare } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, is2faError, parseCommandError, type Host, type SettingsPublic } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +13,7 @@ interface HostDetailProps {
   onDelete: (fromCloud: boolean) => void
   onConnect: () => void
   onNewTerm: () => void
+  onOpenFiles: () => void
   sessionOpen: boolean
 }
 
@@ -23,6 +24,7 @@ export function HostDetail({
   onDelete,
   onConnect,
   onNewTerm,
+  onOpenFiles,
   sessionOpen,
 }: HostDetailProps) {
   return (
@@ -84,6 +86,14 @@ export function HostDetail({
                 Connect
               </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={onOpenFiles}
+              disabled={host.proxyEnabled && !host.agentOnline}
+            >
+              <Folder className="h-4 w-4" />
+              Files
+            </Button>
             <Button variant="outline" onClick={onEdit}>
               <Pencil className="h-4 w-4" />
               Edit

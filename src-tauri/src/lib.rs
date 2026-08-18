@@ -15,6 +15,7 @@ use tauri::Manager;
 pub struct AppState {
     store: Mutex<db::Store>,
     sessions: Arc<tokio::sync::Mutex<ssh::SessionMap>>,
+    sftp: Arc<tokio::sync::Mutex<ssh::SftpMap>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,6 +33,7 @@ pub fn run() {
             app.manage(AppState {
                 store: Mutex::new(store),
                 sessions: Arc::new(tokio::sync::Mutex::new(ssh::SessionMap::new())),
+                sftp: Arc::new(tokio::sync::Mutex::new(ssh::SftpMap::new())),
             });
             Ok(())
         })
@@ -61,6 +63,19 @@ pub fn run() {
             commands::ssh_write,
             commands::ssh_resize,
             commands::ssh_close,
+            commands::sftp_connect,
+            commands::sftp_close,
+            commands::sftp_list,
+            commands::sftp_mkdir,
+            commands::sftp_rename,
+            commands::sftp_remove,
+            commands::sftp_transfer,
+            commands::fs_home,
+            commands::fs_list,
+            commands::fs_mkdir,
+            commands::fs_rename,
+            commands::fs_remove,
+            commands::fs_copy,
             commands::export_vortex,
             commands::import_vortex,
             commands::open_web_path,

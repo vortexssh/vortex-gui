@@ -23,7 +23,7 @@ pub struct LiveSession {
 
 pub type SessionMap = HashMap<String, LiveSession>;
 
-pub(super) struct IgnoreHostKey;
+pub(crate) struct IgnoreHostKey;
 
 impl client::Handler for IgnoreHostKey {
     type Error = russh::Error;
@@ -112,33 +112,13 @@ async fn run_session(
     mut resize_rx: mpsc::Receiver<(u32, u32)>,
     mut close_rx: watch::Receiver<bool>,
 ) -> Result<(), AppError> {
-    let config = Arc::new(client::Config {
-        inactivity_timeout: None,
-        keepalive_interval: Some(Duration::from_secs(30)),
-        ..<_>::default()
-    });
-
-    let mut handle = if params.proxy {
-        let ws_url = params
-            .ws_url
-            .as_deref()
-            .ok_or_else(|| AppError::msg("proxy URL missing"))?;
-        let stream = dial_proxy(ws_url, &params.web_url).await?;
-        client::connect_stream(config, stream, IgnoreHostKey).await?
-    } else {
-        let addr = params.host.address.trim();
-        if addr.is_empty() {
-            return Err(AppError::msg(
-                "host address is empty (direct mode requires IP/hostname)",
-            ));
-        }
-        let port = if params.host.port == 0 {
-            22
-        } else {
-            params.host.port as u16
-        };
-        client::connect(config, (addr, port), IgnoreHostKey).await?
-    };
+    let mut handle = dial_ssh(
+        &params.host,
+        params.proxy,
+        params.ws_url.as_deref(),
+        &params.web_url,
+    )
+    .await?;
 
     super::auth::authenticate(
         &mut handle,
@@ -196,6 +176,33 @@ async fn run_session(
         .disconnect(Disconnect::ByApplication, "", "en")
         .await;
     Ok(())
+}
+
+pub async fn dial_ssh(
+    host: &Host,
+    proxy: bool,
+    ws_url: Option<&str>,
+    web_url: &str,
+) -> Result<client::Handle<IgnoreHostKey>, AppError> {
+    let config = Arc::new(client::Config {
+        inactivity_timeout: None,
+        keepalive_interval: Some(Duration::from_secs(30)),
+        ..<_>::default()
+    });
+    if proxy {
+        let url = ws_url.ok_or_else(|| AppError::msg("proxy URL missing"))?;
+        let stream = dial_proxy(url, web_url).await?;
+        Ok(client::connect_stream(config, stream, IgnoreHostKey).await?)
+    } else {
+        let addr = host.address.trim();
+        if addr.is_empty() {
+            return Err(AppError::msg(
+                "host address is empty (direct mode requires IP/hostname)",
+            ));
+        }
+        let port = if host.port == 0 { 22 } else { host.port as u16 };
+        Ok(client::connect(config, (addr, port), IgnoreHostKey).await?)
+    }
 }
 
 pub(super) fn emit_data(app: &AppHandle, session_id: &str, data: &[u8]) {

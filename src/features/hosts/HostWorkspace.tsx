@@ -21,6 +21,7 @@ interface HostWorkspaceProps {
   onDelete: (fromCloud: boolean) => void
   onConnect: () => void
   onNewTerm: () => void
+  onOpenFiles: () => void
 }
 
 export function HostWorkspace({
@@ -30,6 +31,7 @@ export function HostWorkspace({
   onDelete,
   onConnect,
   onNewTerm,
+  onOpenFiles,
 }: HostWorkspaceProps) {
   const layout = layoutOf(settings?.terminalLayout)
   const termTabs = useUiStore((s) => s.termTabs)
@@ -48,6 +50,7 @@ export function HostWorkspace({
           onDelete={onDelete}
           onConnect={onConnect}
           onNewTerm={onNewTerm}
+          onOpenFiles={onOpenFiles}
           sessionOpen={false}
         />
       </div>
@@ -73,6 +76,7 @@ export function HostWorkspace({
             onDelete={onDelete}
             onConnect={onConnect}
             onNewTerm={onNewTerm}
+            onOpenFiles={onOpenFiles}
             sessionOpen={sessionOpen}
           />
         </div>
@@ -184,6 +188,7 @@ export function HostWorkspace({
             onDelete={onDelete}
             onConnect={onConnect}
             onNewTerm={onNewTerm}
+            onOpenFiles={onOpenFiles}
             sessionOpen={sessionOpen}
           />
         </div>
@@ -202,6 +207,7 @@ function DetailOrEmpty({
   onDelete,
   onConnect,
   onNewTerm,
+  onOpenFiles,
   sessionOpen,
 }: {
   selected: Host | null
@@ -210,6 +216,7 @@ function DetailOrEmpty({
   onDelete: (fromCloud: boolean) => void
   onConnect: () => void
   onNewTerm: () => void
+  onOpenFiles: () => void
   sessionOpen: boolean
 }) {
   if (!selected) {
@@ -233,6 +240,7 @@ function DetailOrEmpty({
       onDelete={onDelete}
       onConnect={onConnect}
       onNewTerm={onNewTerm}
+      onOpenFiles={onOpenFiles}
       sessionOpen={sessionOpen}
     />
   )

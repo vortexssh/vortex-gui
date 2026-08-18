@@ -17,13 +17,14 @@ export interface TermTab {
 }
 
 interface UiState {
-  view: 'hosts' | 'billing' | 'settings'
+  view: 'hosts' | 'billing' | 'settings' | 'files'
   settingsSection: 'cloud' | 'terminal' | 'roster' | 'advanced'
   selectedHostId: string | null
   termTabs: TermTab[]
   activeTermId: string | null
   toasts: ToastItem[]
   setView: (view: UiState['view']) => void
+  openFiles: (hostId: string | null) => void
   setSettingsSection: (section: UiState['settingsSection']) => void
   selectHost: (id: string | null) => void
   openTerm: (hostId: string, hostName: string, mode?: 'reconnect' | 'new') => void
@@ -44,6 +45,11 @@ export const useUiStore = create<UiState>((set, get) => ({
   activeTermId: null,
   toasts: [],
   setView: (view) => set({ view }),
+  openFiles: (hostId) =>
+    set({
+      view: 'files',
+      selectedHostId: hostId ?? get().selectedHostId,
+    }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),
   selectHost: (id) => set({ selectedHostId: id, activeTermId: null, view: 'hosts' }),
   openTerm: (hostId, hostName, mode = 'reconnect') => {

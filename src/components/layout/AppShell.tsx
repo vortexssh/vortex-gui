@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Cloud, CloudOff, RefreshCw, Server, Settings, Wallet } from 'lucide-react'
+import { Activity, Cloud, CloudOff, Folder, RefreshCw, Server, Settings, Wallet } from 'lucide-react'
 import { api, type UserMe } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { TwoFactorBanner } from './TwoFactorBanner'
@@ -47,6 +47,14 @@ export function AppShell({ children, onSync, syncing }: AppShellProps) {
             >
               <Server className="h-3.5 w-3.5" />
               Hosts
+            </Button>
+            <Button
+              variant={view === 'files' ? 'primary' : 'ghost'}
+              className="!text-xs"
+              onClick={() => setView('files')}
+            >
+              <Folder className="h-3.5 w-3.5" />
+              Files
             </Button>
             <Button
               variant={view === 'billing' ? 'primary' : 'ghost'}

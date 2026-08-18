@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { ToastViewport } from '@/components/ui/Toast'
 import { BillingPage } from '@/features/billing/BillingPage'
+import { FilesPage } from '@/features/files/FilesPage'
 import { HostForm } from '@/features/hosts/HostForm'
 import { HostList } from '@/features/hosts/HostList'
 import { HostWorkspace } from '@/features/hosts/HostWorkspace'
@@ -19,6 +20,7 @@ export default function App() {
   const openTerm = useUiStore((s) => s.openTerm)
   const closeTermsForHost = useUiStore((s) => s.closeTermsForHost)
   const closeTerm = useUiStore((s) => s.closeTerm)
+  const openFiles = useUiStore((s) => s.openFiles)
   const termTabs = useUiStore((s) => s.termTabs)
 
   const hostsQ = useQuery({ queryKey: ['hosts'], queryFn: api.listHosts })
@@ -105,6 +107,11 @@ export default function App() {
         <div className="relative h-full min-h-0">
           {view === 'billing' ? <BillingPage /> : null}
           {view === 'settings' ? <SettingsPage /> : null}
+          {view === 'files' ? (
+            <div className="h-full min-h-0">
+              <FilesPage hosts={hosts} selectedId={selectedId} onSelectHost={(id) => openFiles(id)} />
+            </div>
+          ) : null}
           <div className={`flex h-full min-h-0 ${view === 'hosts' ? '' : 'hidden'}`}>
             <HostList
               hosts={hosts}
@@ -122,6 +129,9 @@ export default function App() {
               onDelete={(fromCloud) => void onDelete(fromCloud)}
               onConnect={() => void onConnect()}
               onNewTerm={() => void onConnect('new')}
+              onOpenFiles={() => {
+                if (selected) openFiles(selected.id)
+              }}
             />
           </div>
         </div>

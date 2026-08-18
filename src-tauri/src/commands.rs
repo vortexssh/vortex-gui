@@ -510,6 +510,129 @@ pub async fn ssh_close(state: State<'_, AppState>, session_id: String) -> AppRes
     ssh::close_session(&map, &session_id)
 }
 
+fn sftp_dial_parts(
+    state: &AppState,
+    host_id: &str,
+) -> AppResult<(db::Host, Option<db::Secret>, bool, Option<String>, String)> {
+    let store = state.store.lock();
+    let host = store.get_host(host_id)?;
+    let secret = store.get_secret(host_id)?;
+    let st = store.load_settings()?;
+    let web = config::effective_web_url(&st.web_url);
+    let proxy = host.proxy_enabled;
+    let ws_url = if proxy {
+        if !host.agent_online {
+            return Err(AppError::msg(format!("agent offline for {}", host.name)));
+        }
+        let client = client_from_settings(&st)?;
+        Some(client.ws_proxy_url(&host.id)?)
+    } else {
+        None
+    };
+    Ok((host, secret, proxy, ws_url, web))
+}
+
+#[tauri::command]
+pub async fn sftp_connect(
+    state: State<'_, AppState>,
+    host_id: String,
+) -> AppResult<ssh::SftpConnectResult> {
+    let (host, secret, proxy, ws_url, web) = sftp_dial_parts(&state, &host_id)?;
+    ssh::sftp::connect(host, secret, proxy, ws_url, web, state.sftp.as_ref()).await
+}
+
+#[tauri::command]
+pub async fn sftp_close(state: State<'_, AppState>, host_id: String) -> AppResult<()> {
+    ssh::sftp::close(&host_id, state.sftp.as_ref()).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn sftp_list(
+    state: State<'_, AppState>,
+    host_id: String,
+    path: String,
+) -> AppResult<ssh::FsListing> {
+    ssh::sftp::list(&host_id, &path, state.sftp.as_ref()).await
+}
+
+#[tauri::command]
+pub async fn sftp_mkdir(state: State<'_, AppState>, host_id: String, path: String) -> AppResult<()> {
+    ssh::sftp::mkdir(&host_id, &path, state.sftp.as_ref()).await
+}
+
+#[tauri::command]
+pub async fn sftp_rename(
+    state: State<'_, AppState>,
+    host_id: String,
+    from: String,
+    to: String,
+) -> AppResult<()> {
+    ssh::sftp::rename(&host_id, &from, &to, state.sftp.as_ref()).await
+}
+
+#[tauri::command]
+pub async fn sftp_remove(
+    state: State<'_, AppState>,
+    host_id: String,
+    path: String,
+    is_dir: bool,
+) -> AppResult<()> {
+    ssh::sftp::remove(&host_id, &path, is_dir, state.sftp.as_ref()).await
+}
+
+#[tauri::command]
+pub async fn sftp_transfer(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    host_id: String,
+    direction: String,
+    local_path: String,
+    remote_path: String,
+    transfer_id: String,
+) -> AppResult<()> {
+    ssh::sftp::transfer(
+        &app,
+        &host_id,
+        &direction,
+        &local_path,
+        &remote_path,
+        &transfer_id,
+        state.sftp.as_ref(),
+    )
+    .await
+}
+
+#[tauri::command]
+pub fn fs_home() -> AppResult<String> {
+    ssh::localfs::home_dir()
+}
+
+#[tauri::command]
+pub async fn fs_list(path: String) -> AppResult<ssh::FsListing> {
+    ssh::localfs::list(&path).await
+}
+
+#[tauri::command]
+pub async fn fs_mkdir(path: String) -> AppResult<()> {
+    ssh::localfs::mkdir(&path).await
+}
+
+#[tauri::command]
+pub async fn fs_rename(from: String, to: String) -> AppResult<()> {
+    ssh::localfs::rename(&from, &to).await
+}
+
+#[tauri::command]
+pub async fn fs_remove(path: String) -> AppResult<()> {
+    ssh::localfs::remove(&path).await
+}
+
+#[tauri::command]
+pub async fn fs_copy(from: String, to: String) -> AppResult<()> {
+    ssh::localfs::copy_local(&from, &to).await
+}
+
 #[tauri::command]
 pub fn export_vortex(state: State<'_, AppState>, path: String, password: String) -> AppResult<()> {
     let bundle = state.store.lock().export_bundle()?;

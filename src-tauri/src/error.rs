@@ -90,6 +90,12 @@ impl From<russh::Error> for AppError {
     }
 }
 
+impl From<russh_sftp::client::error::Error> for AppError {
+    fn from(e: russh_sftp::client::error::Error) -> Self {
+        Self::Msg(format!("sftp: {e}"))
+    }
+}
+
 impl From<crate::crypto::CryptoError> for AppError {
     fn from(e: crate::crypto::CryptoError) -> Self {
         Self::Msg(e.to_string())

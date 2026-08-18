@@ -264,6 +264,35 @@ export const api = {
   sshResize: (sessionId: string, cols: number, rows: number) =>
     invoke<void>('ssh_resize', { sessionId, cols, rows }),
   sshClose: (sessionId: string) => invoke<void>('ssh_close', { sessionId }),
+  sftpConnect: (hostId: string) => invoke<SftpConnectResult>('sftp_connect', { hostId }),
+  sftpClose: (hostId: string) => invoke<void>('sftp_close', { hostId }),
+  sftpList: (hostId: string, path: string) =>
+    invoke<FsListing>('sftp_list', { hostId, path }),
+  sftpMkdir: (hostId: string, path: string) => invoke<void>('sftp_mkdir', { hostId, path }),
+  sftpRename: (hostId: string, from: string, to: string) =>
+    invoke<void>('sftp_rename', { hostId, from, to }),
+  sftpRemove: (hostId: string, path: string, isDir: boolean) =>
+    invoke<void>('sftp_remove', { hostId, path, isDir }),
+  sftpTransfer: (input: {
+    hostId: string
+    direction: 'put' | 'get'
+    localPath: string
+    remotePath: string
+    transferId: string
+  }) =>
+    invoke<void>('sftp_transfer', {
+      hostId: input.hostId,
+      direction: input.direction,
+      localPath: input.localPath,
+      remotePath: input.remotePath,
+      transferId: input.transferId,
+    }),
+  fsHome: () => invoke<string>('fs_home'),
+  fsList: (path: string) => invoke<FsListing>('fs_list', { path }),
+  fsMkdir: (path: string) => invoke<void>('fs_mkdir', { path }),
+  fsRename: (from: string, to: string) => invoke<void>('fs_rename', { from, to }),
+  fsRemove: (path: string) => invoke<void>('fs_remove', { path }),
+  fsCopy: (from: string, to: string) => invoke<void>('fs_copy', { from, to }),
   exportVortex: (path: string, password: string) =>
     invoke<void>('export_vortex', { path, password }),
   importVortex: (path: string, password: string, overwrite: boolean) =>
@@ -287,6 +316,38 @@ export function listenSshData(handler: (ev: SshDataEvent) => void): Promise<Unli
 
 export function listenSshExit(handler: (ev: SshExitEvent) => void): Promise<UnlistenFn> {
   return listen<SshExitEvent>('ssh-exit', (e) => handler(e.payload))
+}
+
+export interface FsEntry {
+  name: string
+  path: string
+  isDir: boolean
+  size: number
+  mtime: number | null
+  mode: number | null
+}
+
+export interface FsListing {
+  path: string
+  entries: FsEntry[]
+}
+
+export interface SftpConnectResult {
+  cwd: string
+  mode: string
+}
+
+export interface SftpProgressEvent {
+  transferId: string
+  done: number
+  total: number
+  name: string
+  finished: boolean
+  error: string | null
+}
+
+export function listenSftpProgress(handler: (ev: SftpProgressEvent) => void): Promise<UnlistenFn> {
+  return listen<SftpProgressEvent>('sftp-progress', (e) => handler(e.payload))
 }
 
 export function toastError(err: unknown, fallback = 'request failed'): CommandError {
