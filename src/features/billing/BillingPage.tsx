@@ -5,6 +5,7 @@ import { countryFlag } from '@/lib/countryFlag'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
 import { toast } from '@/store/uiStore'
 import { PayersSection } from './PayersSection'
 
@@ -165,10 +166,9 @@ export function BillingPage() {
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-muted">
             Payer filter
           </h3>
-          <label className="flex max-w-sm flex-col gap-1 text-sm">
-            <span className="text-xs uppercase tracking-wider text-muted">Show renewals for</span>
-            <select
-              className="rounded-md border border-border bg-void px-3 py-2 font-mono text-sm text-fg-strong"
+          <div className="max-w-sm">
+            <Select
+              label="Show renewals for"
               value={selectedPayerId}
               onChange={(e) => {
                 setSelectedPayerId(e.target.value)
@@ -181,8 +181,8 @@ export function BillingPage() {
                   {p.name} ({p.host_count})
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </div>
         </section>
 
         <div className="flex flex-wrap items-end justify-between gap-4">

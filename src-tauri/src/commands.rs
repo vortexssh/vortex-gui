@@ -55,12 +55,16 @@ pub fn save_settings(
     core_url: String,
     web_url: String,
     sync_on_start: bool,
+    terminal_layout: Option<String>,
 ) -> AppResult<SettingsPublic> {
     let store = state.store.lock();
     let mut st = store.load_settings()?;
     st.core_url = core_url.trim().trim_end_matches('/').to_string();
     st.web_url = web_url.trim().trim_end_matches('/').to_string();
     st.sync_on_start = sync_on_start;
+    if let Some(layout) = terminal_layout {
+        st.terminal_layout = crate::db::normalize_terminal_layout(&layout);
+    }
     store.save_settings(&st)?;
     Ok(public_settings(&st))
 }

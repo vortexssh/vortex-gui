@@ -12,7 +12,7 @@ export function Input({ label, error, className = '', id, ...rest }: InputProps)
       {label ? <span className="text-xs uppercase tracking-wider text-muted">{label}</span> : null}
       <input
         id={inputId}
-        className={`rounded-md border border-border bg-void px-3 py-2 font-mono text-sm text-fg-strong outline-none transition-colors placeholder:text-muted focus:border-neon/50 focus:neon-ring ${error ? 'border-danger/50' : ''} ${className}`}
+        className={`rounded-md border border-border bg-void px-3 py-2 font-mono text-sm text-fg-strong outline-none transition-colors [color-scheme:dark] placeholder:text-muted focus:border-neon/50 focus:neon-ring ${error ? 'border-danger/50' : ''} ${className}`}
         {...rest}
       />
       {error ? <span className="text-xs text-danger">{error}</span> : null}

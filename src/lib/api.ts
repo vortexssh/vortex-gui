@@ -37,12 +37,15 @@ export interface HostBilling {
   payerName: string | null
 }
 
+export type TerminalLayout = 'tabs' | 'split' | 'window'
+
 export interface SettingsPublic {
   coreUrl: string
   webUrl: string
   accountEmail: string
   lastSyncAt: string | null
   syncOnStart: boolean
+  terminalLayout: TerminalLayout
   linked: boolean
 }
 
@@ -210,11 +213,17 @@ export function userSatisfies2faPolicy(user: UserMe | null): boolean {
 export const api = {
   listHosts: () => invoke<Host[]>('list_hosts'),
   getSettings: () => invoke<SettingsPublic>('get_settings'),
-  saveSettings: (input: { coreUrl: string; webUrl: string; syncOnStart: boolean }) =>
+  saveSettings: (input: {
+    coreUrl: string
+    webUrl: string
+    syncOnStart: boolean
+    terminalLayout: TerminalLayout
+  }) =>
     invoke<SettingsPublic>('save_settings', {
       coreUrl: input.coreUrl,
       webUrl: input.webUrl,
       syncOnStart: input.syncOnStart,
+      terminalLayout: input.terminalLayout,
     }),
   health: () => invoke<boolean>('health'),
   getMe: () => invoke<UserMe>('get_me'),

@@ -1,10 +1,16 @@
 {
   "identifier": "default",
   "description": "Main window: local IPC only. Network stays in Rust.",
-  "windows": ["main"],
+  "windows": ["main", "term-*"],
   "permissions": [
     "core:default",
     "core:event:default",
+    "core:webview:allow-create-webview-window",
+    "core:webview:allow-get-all-webviews",
+    "core:window:allow-get-all-windows",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-title",
     "opener:default",
     "dialog:default"
   ]

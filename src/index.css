@@ -33,6 +33,7 @@
   body,
   #root {
     height: 100%;
+    color-scheme: dark;
   }
 
   body {
@@ -42,6 +43,20 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     user-select: none;
+  }
+
+  input,
+  textarea,
+  select {
+    color-scheme: dark;
+    background-color: var(--color-void);
+    color: var(--color-fg-strong);
+  }
+
+  select option,
+  select optgroup {
+    background-color: #111111;
+    color: #e5e7eb;
   }
 
   ::selection {

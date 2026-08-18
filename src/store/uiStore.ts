@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { TerminalLayout } from '@/lib/api'
 
 export type ToastTone = 'info' | 'success' | 'error'
 
@@ -8,16 +9,27 @@ interface ToastItem {
   tone: ToastTone
 }
 
+export interface TermTab {
+  id: string
+  hostId: string
+  hostName: string
+  gen: number
+}
+
 interface UiState {
-  view: 'hosts' | 'billing'
+  view: 'hosts' | 'billing' | 'settings'
+  settingsSection: 'cloud' | 'terminal' | 'roster' | 'advanced'
   selectedHostId: string | null
-  sessionHostId: string | null
-  settingsOpen: boolean
+  termTabs: TermTab[]
+  activeTermId: string | null
   toasts: ToastItem[]
-  setView: (view: 'hosts' | 'billing') => void
+  setView: (view: UiState['view']) => void
+  setSettingsSection: (section: UiState['settingsSection']) => void
   selectHost: (id: string | null) => void
-  setSession: (hostId: string | null, sessionId?: string | null) => void
-  setSettingsOpen: (open: boolean) => void
+  openTerm: (hostId: string, hostName: string) => void
+  closeTerm: (tabId: string) => void
+  focusTerm: (tabId: string) => void
+  closeTermsForHost: (hostId: string) => void
   pushToast: (message: string, tone?: ToastTone) => void
   dismissToast: (id: string) => void
 }
@@ -26,14 +38,51 @@ const timers = new Map<string, number>()
 
 export const useUiStore = create<UiState>((set, get) => ({
   view: 'hosts',
+  settingsSection: 'cloud',
   selectedHostId: null,
-  sessionHostId: null,
-  settingsOpen: false,
+  termTabs: [],
+  activeTermId: null,
   toasts: [],
   setView: (view) => set({ view }),
-  selectHost: (id) => set({ selectedHostId: id }),
-  setSession: (hostId) => set({ sessionHostId: hostId }),
-  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setSettingsSection: (settingsSection) => set({ settingsSection }),
+  selectHost: (id) => set({ selectedHostId: id, activeTermId: null, view: 'hosts' }),
+  openTerm: (hostId, hostName) => {
+    const { termTabs } = get()
+    const existing = termTabs.find((t) => t.hostId === hostId)
+    if (existing) {
+      set({
+        activeTermId: existing.id,
+        termTabs: termTabs.map((t) =>
+          t.id === existing.id ? { ...t, gen: t.gen + 1, hostName } : t,
+        ),
+      })
+      return
+    }
+    const id = crypto.randomUUID()
+    set({
+      termTabs: [...termTabs, { id, hostId, hostName, gen: 0 }],
+      activeTermId: id,
+    })
+  },
+  closeTerm: (tabId) => {
+    const { termTabs, activeTermId } = get()
+    const next = termTabs.filter((t) => t.id !== tabId)
+    let active = activeTermId
+    if (active === tabId) {
+      const idx = termTabs.findIndex((t) => t.id === tabId)
+      active = next[idx]?.id ?? next[idx - 1]?.id ?? null
+    }
+    set({ termTabs: next, activeTermId: active })
+  },
+  focusTerm: (tabId) => set({ activeTermId: tabId === '__details__' ? null : tabId }),
+  closeTermsForHost: (hostId) => {
+    const { termTabs, activeTermId } = get()
+    const next = termTabs.filter((t) => t.hostId !== hostId)
+    const active = next.some((t) => t.id === activeTermId)
+      ? activeTermId
+      : (next.at(-1)?.id ?? null)
+    set({ termTabs: next, activeTermId: active })
+  },
   pushToast: (message, tone = 'info') => {
     const trimmed = message.trim()
     if (!trimmed) return
@@ -54,4 +103,9 @@ export const useUiStore = create<UiState>((set, get) => ({
 
 export function toast(message: string, tone?: ToastTone): void {
   useUiStore.getState().pushToast(message, tone)
+}
+
+export function layoutOf(raw: string | undefined | null): TerminalLayout {
+  if (raw === 'split' || raw === 'window' || raw === 'tabs') return raw
+  return 'tabs'
 }

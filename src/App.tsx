@@ -3,32 +3,31 @@ import { useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { ToastViewport } from '@/components/ui/Toast'
 import { BillingPage } from '@/features/billing/BillingPage'
-import { HostDetail } from '@/features/hosts/HostDetail'
 import { HostForm } from '@/features/hosts/HostForm'
 import { HostList } from '@/features/hosts/HostList'
+import { HostWorkspace } from '@/features/hosts/HostWorkspace'
 import { SettingsPage } from '@/features/settings/SettingsPage'
-import { TerminalPane } from '@/features/terminal/TerminalPane'
 import { api, is2faError, parseCommandError, type Host, type SaveHostInput } from '@/lib/api'
-import { toast, useUiStore } from '@/store/uiStore'
+import { openTermWindow } from '@/lib/termWindow'
+import { layoutOf, toast, useUiStore } from '@/store/uiStore'
 
 export default function App() {
   const qc = useQueryClient()
   const view = useUiStore((s) => s.view)
   const selectedId = useUiStore((s) => s.selectedHostId)
   const selectHost = useUiStore((s) => s.selectHost)
-  const sessionHostId = useUiStore((s) => s.sessionHostId)
-  const setSession = useUiStore((s) => s.setSession)
-  const settingsOpen = useUiStore((s) => s.settingsOpen)
-  const setSettingsOpen = useUiStore((s) => s.setSettingsOpen)
+  const openTerm = useUiStore((s) => s.openTerm)
+  const closeTermsForHost = useUiStore((s) => s.closeTermsForHost)
+  const closeTerm = useUiStore((s) => s.closeTerm)
+  const termTabs = useUiStore((s) => s.termTabs)
 
   const hostsQ = useQuery({ queryKey: ['hosts'], queryFn: api.listHosts })
   const settingsQ = useQuery({ queryKey: ['settings'], queryFn: api.getSettings })
   const hosts = hostsQ.data ?? []
   const selected = hosts.find((h) => h.id === selectedId) ?? null
-  const sessionHost = hosts.find((h) => h.id === sessionHostId) ?? null
+  const layout = layoutOf(settingsQ.data?.terminalLayout)
 
   const [editor, setEditor] = useState<Host | 'new' | null>(null)
-  const [termGen, setTermGen] = useState(0)
 
   const syncMut = useMutation({
     mutationFn: api.syncCloud,
@@ -65,7 +64,7 @@ export default function App() {
     try {
       await api.deleteHost(selected.id, fromCloud)
       toast('Deleted', 'success')
-      if (sessionHostId === selected.id) setSession(null)
+      closeTermsForHost(selected.id)
       selectHost(null)
       await qc.invalidateQueries({ queryKey: ['hosts'] })
     } catch (e) {
@@ -82,19 +81,31 @@ export default function App() {
     }
   }
 
-  const terminalOpen = Boolean(sessionHostId)
+  async function onConnect() {
+    if (!selected) return
+    if (layout === 'window') {
+      try {
+        await openTermWindow(selected.id, selected.name)
+      } catch (e) {
+        toast(parseCommandError(e).message, 'error')
+      }
+      return
+    }
+    if (layout === 'split') {
+      for (const t of termTabs) {
+        if (t.hostId !== selected.id) closeTerm(t.id)
+      }
+    }
+    openTerm(selected.id, selected.name)
+  }
 
   return (
     <>
-      <AppShell
-        onSync={() => syncMut.mutate()}
-        syncing={syncMut.isPending}
-        onOpenSettings={() => setSettingsOpen(true)}
-      >
-        {view === 'billing' ? (
-          <BillingPage />
-        ) : (
-          <div className="flex h-full min-h-0">
+      <AppShell onSync={() => syncMut.mutate()} syncing={syncMut.isPending}>
+        <div className="relative h-full min-h-0">
+          {view === 'billing' ? <BillingPage /> : null}
+          {view === 'settings' ? <SettingsPage /> : null}
+          <div className={`flex h-full min-h-0 ${view === 'hosts' ? '' : 'hidden'}`}>
             <HostList
               hosts={hosts}
               selectedId={selectedId}
@@ -102,55 +113,17 @@ export default function App() {
               onAdd={() => setEditor('new')}
               onMove={onMove}
             />
-            <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <div
-                className={
-                  terminalOpen
-                    ? 'min-h-0 shrink-0 overflow-auto'
-                    : 'min-h-0 flex-1 overflow-auto'
-                }
-                style={terminalOpen ? { maxHeight: '42%' } : undefined}
-              >
-                {selected ? (
-                  <HostDetail
-                    host={selected}
-                    settings={settingsQ.data}
-                    onEdit={() => setEditor(selected)}
-                    onDelete={(fromCloud) => void onDelete(fromCloud)}
-                    onConnect={() => {
-                      if (sessionHostId === selected.id) {
-                        setTermGen((g) => g + 1)
-                      } else {
-                        setSession(selected.id)
-                      }
-                    }}
-                    sessionOpen={sessionHostId === selected.id}
-                  />
-                ) : (
-                  <div className="flex flex-1 items-center justify-center p-8">
-                    <div className="max-w-md text-center">
-                      <pre className="font-mono text-[10px] leading-tight text-neon/80">{ASCII}</pre>
-                      <p className="mt-4 text-sm text-dim">
-                        Local-first SSH manager. Secrets never leave this machine. Select a host or
-                        add one — cloud login is optional.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {sessionHostId && sessionHost ? (
-                <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden border-t border-border">
-                  <TerminalPane
-                    key={`${sessionHost.id}:${termGen}`}
-                    hostId={sessionHost.id}
-                    hostName={sessionHost.name}
-                    onClose={() => setSession(null)}
-                  />
-                </div>
-              ) : null}
-            </main>
+            <HostWorkspace
+              selected={selected}
+              settings={settingsQ.data}
+              onEdit={() => {
+                if (selected) setEditor(selected)
+              }}
+              onDelete={(fromCloud) => void onDelete(fromCloud)}
+              onConnect={() => void onConnect()}
+            />
           </div>
-        )}
+        </div>
       </AppShell>
       <HostForm
         open={editor !== null}
@@ -162,17 +135,7 @@ export default function App() {
           await saveMut.mutateAsync(input)
         }}
       />
-      <SettingsPage open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ToastViewport />
     </>
   )
 }
-
-const ASCII = `
-██╗   ██╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗
-██║   ██║██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝╚██╗██╔╝
-██║   ██║██║   ██║██████╔╝   ██║   █████╗   ╚███╔╝
-╚██╗ ██╔╝██║   ██║██╔══██╗   ██║   ██╔══╝   ██╔██╗
- ╚████╔╝ ╚██████╔╝██║  ██║   ██║   ███████╗██╔╝ ██╗
-  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝
-`.trim()

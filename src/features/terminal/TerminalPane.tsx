@@ -19,9 +19,17 @@ interface TerminalPaneProps {
   hostId: string
   hostName: string
   onClose: () => void
+  active?: boolean
+  chrome?: 'full' | 'none'
 }
 
-export function TerminalPane({ hostId, hostName, onClose }: TerminalPaneProps) {
+export function TerminalPane({
+  hostId,
+  hostName,
+  onClose,
+  active = true,
+  chrome = 'full',
+}: TerminalPaneProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -156,18 +164,44 @@ export function TerminalPane({ hostId, hostName, onClose }: TerminalPaneProps) {
     }
   }, [hostId])
 
+  useEffect(() => {
+    if (!active) return
+    const fit = fitRef.current
+    const el = wrapRef.current
+    if (!fit || !el) return
+    const id = window.requestAnimationFrame(() => {
+      if (el.clientHeight < 24 || el.clientWidth < 24) return
+      try {
+        fit.fit()
+      } catch {
+        /* collapsed */
+      }
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [active])
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-void">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-neon">
-          ssh · {hostName}
-          <span className="ml-2 text-muted">{status}</span>
-        </span>
-        <Button variant="ghost" className="!px-2 !py-0.5 !text-xs" onClick={() => void close()}>
-          <X className="h-3.5 w-3.5" />
-          close
-        </Button>
-      </div>
+    <div
+      className="flex h-full min-h-0 flex-col bg-void"
+      hidden={!active}
+      style={{ display: active ? 'flex' : 'none' }}
+    >
+      {chrome === 'full' ? (
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-1.5">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-neon">
+            ssh · {hostName}
+            <span className="ml-2 text-muted">{status}</span>
+          </span>
+          <Button variant="ghost" className="!px-2 !py-0.5 !text-xs" onClick={() => void close()}>
+            <X className="h-3.5 w-3.5" />
+            close
+          </Button>
+        </div>
+      ) : (
+        <div className="shrink-0 border-b border-border px-3 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
+          {status}
+        </div>
+      )}
       <div ref={wrapRef} className="xterm-wrap min-h-0 flex-1 p-1" />
     </div>
   )

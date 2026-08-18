@@ -2,6 +2,7 @@ import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
+import { parseTermHash, TermWindow } from '@/features/terminal/TermWindow'
 import { api } from './lib/api'
 import './index.css'
 
@@ -11,8 +12,11 @@ const queryClient = new QueryClient({
   },
 })
 
+const termBoot = parseTermHash()
+
 function Root() {
   useEffect(() => {
+    if (termBoot) return
     void (async () => {
       try {
         const st = await api.getSettings()
@@ -25,6 +29,9 @@ function Root() {
       }
     })()
   }, [])
+  if (termBoot) {
+    return <TermWindow hostId={termBoot.hostId} hostName={termBoot.hostName} />
+  }
   return <App />
 }
 

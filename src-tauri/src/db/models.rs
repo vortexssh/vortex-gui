@@ -123,6 +123,8 @@ pub struct Settings {
     pub account_email: String,
     pub last_sync_at: Option<DateTime<Utc>>,
     pub sync_on_start: bool,
+    /// tabs (default) | split | window
+    pub terminal_layout: String,
 }
 
 impl Default for Settings {
@@ -134,6 +136,7 @@ impl Default for Settings {
             account_email: String::new(),
             last_sync_at: None,
             sync_on_start: true,
+            terminal_layout: "tabs".into(),
         }
     }
 }
@@ -147,6 +150,7 @@ pub struct SettingsPublic {
     pub account_email: String,
     pub last_sync_at: Option<DateTime<Utc>>,
     pub sync_on_start: bool,
+    pub terminal_layout: String,
     pub linked: bool,
 }
 
@@ -158,8 +162,16 @@ impl Settings {
             account_email: self.account_email.clone(),
             last_sync_at: self.last_sync_at,
             sync_on_start: self.sync_on_start,
+            terminal_layout: normalize_terminal_layout(&self.terminal_layout),
             linked: looks_like_session_token(&self.api_key),
         }
+    }
+}
+
+pub fn normalize_terminal_layout(raw: &str) -> String {
+    match raw.trim() {
+        "split" | "window" | "tabs" => raw.trim().to_string(),
+        _ => "tabs".into(),
     }
 }
 

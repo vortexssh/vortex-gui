@@ -311,6 +311,10 @@ ON CONFLICT(key) DO UPDATE SET value=excluded.value
         if let Some(v) = self.get_setting("sync_on_start")? {
             st.sync_on_start = v == "1" || v.eq_ignore_ascii_case("true");
         }
+        st.terminal_layout = "tabs".into();
+        if let Some(v) = self.get_setting("terminal_layout")? {
+            st.terminal_layout = crate::db::models::normalize_terminal_layout(&v);
+        }
         if let Some(v) = self.get_setting("last_sync_at")? {
             if !v.is_empty() {
                 if let Ok(t) = DateTime::parse_from_rfc3339(&v) {
@@ -332,6 +336,10 @@ ON CONFLICT(key) DO UPDATE SET value=excluded.value
         self.set_setting("api_key", &st.api_key)?;
         self.set_setting("account_email", &st.account_email)?;
         self.set_setting("sync_on_start", if st.sync_on_start { "1" } else { "0" })?;
+        self.set_setting(
+            "terminal_layout",
+            &crate::db::models::normalize_terminal_layout(&st.terminal_layout),
+        )?;
         if let Some(t) = st.last_sync_at {
             self.set_setting(
                 "last_sync_at",

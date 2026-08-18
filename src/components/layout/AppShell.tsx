@@ -9,10 +9,9 @@ interface AppShellProps {
   children: React.ReactNode
   onSync: () => void
   syncing: boolean
-  onOpenSettings: () => void
 }
 
-export function AppShell({ children, onSync, syncing, onOpenSettings }: AppShellProps) {
+export function AppShell({ children, onSync, syncing }: AppShellProps) {
   const settingsQ = useQuery({ queryKey: ['settings'], queryFn: api.getSettings })
   const meQ = useQuery({
     queryKey: ['me'],
@@ -83,7 +82,12 @@ export function AppShell({ children, onSync, syncing, onOpenSettings }: AppShell
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
             Sync
           </Button>
-          <Button variant="ghost" className="!px-2" onClick={onOpenSettings} aria-label="Settings">
+          <Button
+            variant={view === 'settings' ? 'primary' : 'ghost'}
+            className="!px-2"
+            onClick={() => setView('settings')}
+            aria-label="Settings"
+          >
             <Settings className="h-4 w-4" />
           </Button>
         </div>

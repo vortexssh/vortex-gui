@@ -4,6 +4,7 @@ import { api, type AuthType, type Host, type HostBilling, type SaveHostInput } f
 import { Button } from '@/components/ui/Button'
 import { Input, TextArea } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
 import { Toggle } from '@/components/ui/Toggle'
 
 const CYCLES = ['monthly', 'quarterly', 'semiannual', 'annual', 'custom'] as const
@@ -172,17 +173,14 @@ export function HostForm({ open, host, linked, onClose, onSave, saving }: HostFo
           label="Publish metadata to Core"
           disabled={!linked}
         />
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-xs uppercase tracking-wider text-muted">Auth</span>
-          <select
-            className="rounded-md border border-border bg-void px-3 py-2 font-mono text-sm text-fg-strong outline-none focus:border-neon/50"
-            value={authType}
-            onChange={(e) => setAuthType(e.target.value as AuthType)}
-          >
-            <option value="password">password (optional)</option>
-            <option value="private_key">private_key (PEM or path)</option>
-          </select>
-        </label>
+        <Select
+          label="Auth"
+          value={authType}
+          onChange={(e) => setAuthType(e.target.value as AuthType)}
+        >
+          <option value="password">password (optional)</option>
+          <option value="private_key">private_key (PEM or path)</option>
+        </Select>
         <div className="col-span-2">
           <TextArea
             label={
@@ -210,35 +208,29 @@ export function HostForm({ open, host, linked, onClose, onSave, saving }: HostFo
             />
             {billingEnabled ? (
               <>
-                <label className="flex flex-col gap-1.5 text-sm">
-                  <span className="text-xs uppercase tracking-wider text-muted">Payer</span>
-                  <select
-                    className="rounded-md border border-border bg-void px-3 py-2 font-mono text-sm text-fg-strong"
-                    value={billingPayerId}
-                    onChange={(e) => setBillingPayerId(e.target.value)}
-                  >
-                    <option value="">— none —</option>
-                    {(payersQ.data ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1.5 text-sm">
-                  <span className="text-xs uppercase tracking-wider text-muted">Cycle</span>
-                  <select
-                    className="rounded-md border border-border bg-void px-3 py-2 font-mono text-sm text-fg-strong"
-                    value={billingCycle}
-                    onChange={(e) => setBillingCycle(e.target.value)}
-                  >
-                    {CYCLES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Select
+                  label="Payer"
+                  value={billingPayerId}
+                  onChange={(e) => setBillingPayerId(e.target.value)}
+                >
+                  <option value="">— none —</option>
+                  {(payersQ.data ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  label="Cycle"
+                  value={billingCycle}
+                  onChange={(e) => setBillingCycle(e.target.value)}
+                >
+                  {CYCLES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
                 {billingCycle === 'custom' ? (
                   <Input
                     label="Custom days"
