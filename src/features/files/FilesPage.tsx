@@ -259,7 +259,7 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
 
   async function renameSel(side: 'local' | 'remote') {
     const sel = side === 'local' ? localSel : remoteSel
-    if (!sel) return
+    if (!sel || sel.name === '..') return
     const name = window.prompt('Rename to', sel.name)
     if (!name?.trim() || name === sel.name) return
     try {
@@ -278,7 +278,7 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
 
   async function deleteSel(side: 'local' | 'remote') {
     const sel = side === 'local' ? localSel : remoteSel
-    if (!sel) return
+    if (!sel || sel.name === '..') return
     if (!window.confirm(`Delete ${sel.name}?`)) return
     try {
       if (side === 'local') {
@@ -294,11 +294,11 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
   }
 
   async function uploadSel() {
-    if (!localSel) return
+    if (!localSel || localSel.name === '..') return
     await runTransfer('put', localSel.path, joinPath(remotePath, localSel.name), localSel.name)
   }
   async function downloadSel() {
-    if (!remoteSel) return
+    if (!remoteSel || remoteSel.name === '..') return
     await runTransfer('get', joinPath(localPath, remoteSel.name), remoteSel.path, remoteSel.name)
   }
 
@@ -350,7 +350,7 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
           icon={<HardDrive className="h-3.5 w-3.5" />}
           title="local"
           path={localPath}
-          entries={localEntries}
+          entries={withParent(localPath, localEntries)}
           selected={localSel}
           onSelect={setLocalSel}
           onOpen={(e) => {
@@ -364,7 +364,7 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
             <Button
               variant="ghost"
               className="!px-2 !py-1 !text-xs"
-              disabled={!localSel || !connected}
+              disabled={!localSel || !connected || localSel.name === '..'}
               onClick={() => void uploadSel()}
               title="Upload to remote"
             >
@@ -380,7 +380,7 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
           icon={<Server className="h-3.5 w-3.5" />}
           title={host ? `remote · ${host.name}` : 'remote'}
           path={connected ? remotePath : '—'}
-          entries={connected ? remoteEntries : []}
+          entries={connected ? withParent(remotePath, remoteEntries) : []}
           selected={remoteSel}
           onSelect={setRemoteSel}
           disabled={!connected}
@@ -395,7 +395,7 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
             <Button
               variant="ghost"
               className="!px-2 !py-1 !text-xs"
-              disabled={!remoteSel || !connected}
+              disabled={!remoteSel || !connected || remoteSel.name === '..'}
               onClick={() => void downloadSel()}
               title="Download to local"
             >
@@ -516,7 +516,7 @@ function FilePane({
             variant="ghost"
             className="!px-2 !py-1 !text-xs"
             onClick={onRename}
-            disabled={disabled || !selected}
+            disabled={disabled || !selected || selected.name === '..'}
             title="Rename"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -525,7 +525,7 @@ function FilePane({
             variant="ghost"
             className="!px-2 !py-1 !text-xs"
             onClick={onDelete}
-            disabled={disabled || !selected}
+            disabled={disabled || !selected || selected.name === '..'}
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -570,11 +570,16 @@ function FilePane({
           <tbody>
             {entries.map((ent) => {
               const on = selected?.path === ent.path
+              const isDotDot = ent.name === '..'
               return (
                 <tr
-                  key={ent.path}
-                  draggable={!disabled}
+                  key={ent.path + ent.name}
+                  draggable={!disabled && !isDotDot}
                   onDragStart={(e) => {
+                    if (isDotDot) {
+                      e.preventDefault()
+                      return
+                    }
                     e.dataTransfer.setData(
                       DND,
                       JSON.stringify({
@@ -585,22 +590,52 @@ function FilePane({
                       } satisfies DragPayload),
                     )
                     e.dataTransfer.effectAllowed = 'copy'
+                    const ghost = document.createElement('div')
+                    ghost.textContent = ent.isDir ? `${ent.name}/` : ent.name
+                    ghost.style.cssText = [
+                      'position:fixed',
+                      'top:-1000px',
+                      'left:0',
+                      'padding:4px 10px',
+                      'max-width:240px',
+                      'width:max-content',
+                      'overflow:hidden',
+                      'white-space:nowrap',
+                      'text-overflow:ellipsis',
+                      'font:12px "JetBrains Mono",ui-monospace,monospace',
+                      'background:#111111',
+                      'color:#39ff14',
+                      'border:1px solid rgb(57 255 20 / 0.45)',
+                      'border-radius:4px',
+                      'pointer-events:none',
+                      'z-index:9999',
+                    ].join(';')
+                    document.body.appendChild(ghost)
+                    e.dataTransfer.setDragImage(ghost, 16, 12)
+                    const cleanup = () => {
+                      ghost.remove()
+                      window.removeEventListener('dragend', cleanup)
+                    }
+                    window.addEventListener('dragend', cleanup)
                   }}
                   className={`cursor-default select-none ${
                     on ? 'bg-neon/10 text-neon' : 'text-fg hover:bg-panel'
                   }`}
-                  onClick={() => onSelect(ent)}
+                  onClick={() => {
+                    if (isDotDot) onOpen(ent)
+                    else onSelect(ent)
+                  }}
                   onDoubleClick={() => onOpen(ent)}
                 >
                   <td className="truncate px-3 py-1">
                     {ent.isDir ? (
-                      <span className="text-neon/80">{ent.name}/</span>
+                      <span className="text-neon/80">{isDotDot ? '..' : `${ent.name}/`}</span>
                     ) : (
                       ent.name
                     )}
                   </td>
                   <td className="px-3 py-1 text-muted">{ent.isDir ? '—' : formatSize(ent.size)}</td>
-                  <td className="px-3 py-1 text-muted">{formatMtime(ent.mtime)}</td>
+                  <td className="px-3 py-1 text-muted">{isDotDot ? '' : formatMtime(ent.mtime)}</td>
                 </tr>
               )
             })}
@@ -614,6 +649,21 @@ function FilePane({
       </div>
     </div>
   )
+}
+
+function withParent(path: string, entries: FsEntry[]): FsEntry[] {
+  if (!path || path === '/' || path === '—') return entries
+  return [
+    {
+      name: '..',
+      path: parentOf(path),
+      isDir: true,
+      size: 0,
+      mtime: null,
+      mode: null,
+    },
+    ...entries,
+  ]
 }
 
 function joinPath(dir: string, name: string): string {
