@@ -3,7 +3,7 @@ import { HostDetail } from '@/features/hosts/HostDetail'
 import { TerminalPane } from '@/features/terminal/TerminalPane'
 import { TerminalTabs } from '@/features/terminal/TerminalTabs'
 import type { Host, SettingsPublic } from '@/lib/api'
-import { layoutOf, useUiStore } from '@/store/uiStore'
+import { layoutOf, termTabTitle, useUiStore } from '@/store/uiStore'
 
 const ASCII = `
 ██╗   ██╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗
@@ -20,6 +20,7 @@ interface HostWorkspaceProps {
   onEdit: () => void
   onDelete: (fromCloud: boolean) => void
   onConnect: () => void
+  onNewTerm: () => void
 }
 
 export function HostWorkspace({
@@ -28,6 +29,7 @@ export function HostWorkspace({
   onEdit,
   onDelete,
   onConnect,
+  onNewTerm,
 }: HostWorkspaceProps) {
   const layout = layoutOf(settings?.terminalLayout)
   const termTabs = useUiStore((s) => s.termTabs)
@@ -45,6 +47,7 @@ export function HostWorkspace({
           onEdit={onEdit}
           onDelete={onDelete}
           onConnect={onConnect}
+          onNewTerm={onNewTerm}
           sessionOpen={false}
         />
       </div>
@@ -52,9 +55,10 @@ export function HostWorkspace({
   }
 
   if (layout === 'split') {
+    const hostTabs = selected ? termTabs.filter((t) => t.hostId === selected.id) : termTabs
     const tab =
-      (selected ? termTabs.find((t) => t.hostId === selected.id) : undefined) ??
-      termTabs[0] ??
+      hostTabs.find((t) => t.id === activeTermId) ??
+      hostTabs[0] ??
       null
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
@@ -68,17 +72,49 @@ export function HostWorkspace({
             onEdit={onEdit}
             onDelete={onDelete}
             onConnect={onConnect}
+            onNewTerm={onNewTerm}
             sessionOpen={sessionOpen}
           />
         </div>
         {tab ? (
           <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden border-t border-border">
-            <TerminalPane
-              key={`${tab.id}:${tab.gen}`}
-              hostId={tab.hostId}
-              hostName={tab.hostName}
-              onClose={() => closeTerm(tab.id)}
-            />
+            {hostTabs.length > 1 ? (
+              <div className="flex shrink-0 items-center gap-px overflow-x-auto border-b border-border bg-surface px-1">
+                {hostTabs.map((t) => {
+                  const on = t.id === tab.id
+                  return (
+                    <div
+                      key={t.id}
+                      className={`flex items-center gap-1 px-2 py-1 font-mono text-[11px] uppercase tracking-wider ${
+                        on ? 'text-neon' : 'text-muted hover:text-dim'
+                      }`}
+                    >
+                      <button type="button" className="truncate" onClick={() => focusTerm(t.id)}>
+                        {termTabTitle(t, hostTabs)}
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded p-0.5 text-muted hover:bg-border hover:text-fg-strong"
+                        aria-label={`Close ${termTabTitle(t, hostTabs)}`}
+                        onClick={() => closeTerm(t.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+            {hostTabs.length > 1 ? (
+              <TerminalTabs tabs={hostTabs} activeId={tab.id} onClose={closeTerm} />
+            ) : (
+              <TerminalPane
+                key={`${tab.id}:${tab.gen}`}
+                hostId={tab.hostId}
+                hostName={tab.hostName}
+                onClose={() => closeTerm(tab.id)}
+              />
+            )}
           </div>
         ) : null}
       </div>
@@ -119,12 +155,12 @@ export function HostWorkspace({
                 onClick={() => focusTerm(tab.id)}
               >
                 <Square className="mr-1 inline h-2.5 w-2.5" />
-                {tab.hostName}
+                {termTabTitle(tab, termTabs)}
               </button>
               <button
                 type="button"
                 className="rounded p-0.5 text-muted hover:bg-border hover:text-fg-strong"
-                aria-label={`Close ${tab.hostName}`}
+                aria-label={`Close ${termTabTitle(tab, termTabs)}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   closeTerm(tab.id)
@@ -147,6 +183,7 @@ export function HostWorkspace({
             onEdit={onEdit}
             onDelete={onDelete}
             onConnect={onConnect}
+            onNewTerm={onNewTerm}
             sessionOpen={sessionOpen}
           />
         </div>
@@ -164,6 +201,7 @@ function DetailOrEmpty({
   onEdit,
   onDelete,
   onConnect,
+  onNewTerm,
   sessionOpen,
 }: {
   selected: Host | null
@@ -171,6 +209,7 @@ function DetailOrEmpty({
   onEdit: () => void
   onDelete: (fromCloud: boolean) => void
   onConnect: () => void
+  onNewTerm: () => void
   sessionOpen: boolean
 }) {
   if (!selected) {
@@ -193,6 +232,7 @@ function DetailOrEmpty({
       onEdit={onEdit}
       onDelete={onDelete}
       onConnect={onConnect}
+      onNewTerm={onNewTerm}
       sessionOpen={sessionOpen}
     />
   )

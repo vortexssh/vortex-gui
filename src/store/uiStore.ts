@@ -26,7 +26,7 @@ interface UiState {
   setView: (view: UiState['view']) => void
   setSettingsSection: (section: UiState['settingsSection']) => void
   selectHost: (id: string | null) => void
-  openTerm: (hostId: string, hostName: string) => void
+  openTerm: (hostId: string, hostName: string, mode?: 'reconnect' | 'new') => void
   closeTerm: (tabId: string) => void
   focusTerm: (tabId: string) => void
   closeTermsForHost: (hostId: string) => void
@@ -46,17 +46,21 @@ export const useUiStore = create<UiState>((set, get) => ({
   setView: (view) => set({ view }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),
   selectHost: (id) => set({ selectedHostId: id, activeTermId: null, view: 'hosts' }),
-  openTerm: (hostId, hostName) => {
-    const { termTabs } = get()
-    const existing = termTabs.find((t) => t.hostId === hostId)
-    if (existing) {
-      set({
-        activeTermId: existing.id,
-        termTabs: termTabs.map((t) =>
-          t.id === existing.id ? { ...t, gen: t.gen + 1, hostName } : t,
-        ),
-      })
-      return
+  openTerm: (hostId, hostName, mode = 'reconnect') => {
+    const { termTabs, activeTermId } = get()
+    if (mode !== 'new') {
+      const existing =
+        termTabs.find((t) => t.id === activeTermId && t.hostId === hostId) ??
+        termTabs.find((t) => t.hostId === hostId)
+      if (existing) {
+        set({
+          activeTermId: existing.id,
+          termTabs: termTabs.map((t) =>
+            t.id === existing.id ? { ...t, gen: t.gen + 1, hostName: t.hostName || hostName } : t,
+          ),
+        })
+        return
+      }
     }
     const id = crypto.randomUUID()
     set({
@@ -108,4 +112,10 @@ export function toast(message: string, tone?: ToastTone): void {
 export function layoutOf(raw: string | undefined | null): TerminalLayout {
   if (raw === 'split' || raw === 'window' || raw === 'tabs') return raw
   return 'tabs'
+}
+
+export function termTabTitle(tab: TermTab, tabs: TermTab[]): string {
+  const same = tabs.filter((t) => t.hostId === tab.hostId)
+  if (same.length < 2) return tab.hostName
+  return `${tab.hostName} · ${same.findIndex((t) => t.id === tab.id) + 1}`
 }

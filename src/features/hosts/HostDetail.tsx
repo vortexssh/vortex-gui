@@ -1,4 +1,4 @@
-import { Pencil, Trash2, TerminalSquare } from 'lucide-react'
+import { Pencil, Plus, Trash2, TerminalSquare } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, is2faError, parseCommandError, type Host, type SettingsPublic } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
@@ -12,6 +12,7 @@ interface HostDetailProps {
   onEdit: () => void
   onDelete: (fromCloud: boolean) => void
   onConnect: () => void
+  onNewTerm: () => void
   sessionOpen: boolean
 }
 
@@ -21,6 +22,7 @@ export function HostDetail({
   onEdit,
   onDelete,
   onConnect,
+  onNewTerm,
   sessionOpen,
 }: HostDetailProps) {
   return (
@@ -50,14 +52,38 @@ export function HostDetail({
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="primary"
-              onClick={onConnect}
-              disabled={host.proxyEnabled && !host.agentOnline}
-            >
-              <TerminalSquare className="h-4 w-4" />
-              {sessionOpen ? 'Reconnect' : 'Connect'}
-            </Button>
+            {sessionOpen ? (
+              <div className="inline-flex">
+                <Button
+                  variant="primary"
+                  className="!rounded-r-none"
+                  onClick={onConnect}
+                  disabled={host.proxyEnabled && !host.agentOnline}
+                >
+                  <TerminalSquare className="h-4 w-4" />
+                  Reconnect
+                </Button>
+                <Button
+                  variant="primary"
+                  className="!rounded-l-none !border-l-0 !px-2"
+                  onClick={onNewTerm}
+                  disabled={host.proxyEnabled && !host.agentOnline}
+                  title="New terminal"
+                  aria-label="New terminal"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={onConnect}
+                disabled={host.proxyEnabled && !host.agentOnline}
+              >
+                <TerminalSquare className="h-4 w-4" />
+                Connect
+              </Button>
+            )}
             <Button variant="outline" onClick={onEdit}>
               <Pencil className="h-4 w-4" />
               Edit

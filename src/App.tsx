@@ -81,22 +81,22 @@ export default function App() {
     }
   }
 
-  async function onConnect() {
+  async function onConnect(mode: 'reconnect' | 'new' = 'reconnect') {
     if (!selected) return
     if (layout === 'window') {
       try {
-        await openTermWindow(selected.id, selected.name)
+        await openTermWindow(selected.id, selected.name, mode === 'new')
       } catch (e) {
         toast(parseCommandError(e).message, 'error')
       }
       return
     }
-    if (layout === 'split') {
+    if (layout === 'split' && mode !== 'new') {
       for (const t of termTabs) {
         if (t.hostId !== selected.id) closeTerm(t.id)
       }
     }
-    openTerm(selected.id, selected.name)
+    openTerm(selected.id, selected.name, mode)
   }
 
   return (
@@ -121,6 +121,7 @@ export default function App() {
               }}
               onDelete={(fromCloud) => void onDelete(fromCloud)}
               onConnect={() => void onConnect()}
+              onNewTerm={() => void onConnect('new')}
             />
           </div>
         </div>

@@ -1,15 +1,22 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
-export async function openTermWindow(hostId: string, hostName: string): Promise<void> {
-  const label = `term-${hostId.replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const existing = await WebviewWindow.getByLabel(label)
-  if (existing) {
-    await existing.close()
-    await new Promise((r) => window.setTimeout(r, 80))
+export async function openTermWindow(
+  hostId: string,
+  hostName: string,
+  fresh = false,
+): Promise<void> {
+  const base = `term-${hostId.replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const label = fresh ? `${base}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}` : base
+  if (!fresh) {
+    const existing = await WebviewWindow.getByLabel(label)
+    if (existing) {
+      await existing.close()
+      await new Promise((r) => window.setTimeout(r, 80))
+    }
   }
   const q = new URLSearchParams({ hostId, name: hostName })
-  const base = window.location.href.split('#')[0]
-  const url = `${base}#/term?${q.toString()}`
+  const origin = window.location.href.split('#')[0]
+  const url = `${origin}#/term?${q.toString()}`
   await new Promise<void>((resolve, reject) => {
     const w = new WebviewWindow(label, {
       url,
