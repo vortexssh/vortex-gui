@@ -1,0 +1,25 @@
+# OS / editors
+.DS_Store
+.idea
+.vscode/*
+*.swp
+
+# Secrets / local data
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+master.key
+*.pem
+*.key
+
+# Build
+dist/
+build/
+target/
+node_modules/
+*.local
+src-tauri/gen/schemas
+
+src-tauri/gen

@@ -1,0 +1,14 @@
+---
+description: Zero-trust rules for the desktop client talking to Vortex Core.
+globs: "**/*.{ts,tsx,go,rs,py}"
+alwaysApply: false
+---
+
+# Zero-trust in GUI code
+
+Forbidden in any request to Core except `/api/v1/auth/login` (account password only):
+`password`, `private_key`, `ssh_key`, `secret`, `passphrase`.
+
+Local store: encrypt secrets at rest (AES-256-GCM). Master key in OS keyring.
+
+`require_2fa` in `/users/me` is the **effective** gate (debug/dev/prod). If it is true and `is_2fa_enabled` is false, proxy/telemetry/tasks will 403 — send the user to `https://my.vortex.timant32.ru` to enable TOTP.

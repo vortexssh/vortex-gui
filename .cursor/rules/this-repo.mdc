@@ -1,0 +1,14 @@
+---
+description: Vortex GUI is a local-first desktop client. Load ecosystem + client protocol.
+alwaysApply: true
+---
+
+# Vortex GUI — scope
+
+You are in **VortexGui**, the native desktop client.
+
+- Do not implement FastAPI, the host agent, or the React web console here.
+- SSH passwords and private keys stay on-disk locally (encrypted). Never POST them to Core.
+- Protocol and merge rules: `docs/CLIENT.md`. Product map: `docs/ECOSYSTEM.md`.
+- Read `AGENTS.md` before scaffolding.
+- Sibling reference implementation: `../VortexSSH-TUI`.

@@ -1,0 +1,11 @@
+---
+description: Visual language matching Vortex Web / TUI.
+globs: "**/*.{tsx,css,qml}"
+alwaysApply: false
+---
+
+# Visual language
+
+- Background `#0a0a0a`, accent `#39ff14`.
+- UI sans: Inter. Mono (IPs, logs, terminal): JetBrains Mono.
+- Thin borders, small neon glow on active/online. Not purple SaaS gradients.

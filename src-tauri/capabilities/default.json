@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Main window: local IPC only. Network stays in Rust.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "opener:default",
+    "dialog:default"
+  ]
+}
