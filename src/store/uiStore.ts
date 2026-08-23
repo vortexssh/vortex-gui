@@ -116,7 +116,7 @@ export function toast(message: string, tone?: ToastTone): void {
 }
 
 export function layoutOf(raw: string | undefined | null): TerminalLayout {
-  if (raw === 'split' || raw === 'window' || raw === 'tabs') return raw
+  if (raw === 'split' || raw === 'window' || raw === 'tabs' || raw === 'provided') return raw
   return 'tabs'
 }
 

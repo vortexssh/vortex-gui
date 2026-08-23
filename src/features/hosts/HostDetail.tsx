@@ -27,11 +27,16 @@ export function HostDetail({
   onOpenFiles,
   sessionOpen,
 }: HostDetailProps) {
+  const provided = settings?.terminalLayout === 'provided'
   const externalMut = useMutation({
     mutationFn: () => api.openSystemSsh(host.id),
-    onSuccess: () => toast('Launched external SSH', 'success'),
+    onSuccess: () => toast('Launched system terminal', 'success'),
     onError: (e) => toast(parseCommandError(e).message, 'error'),
   })
+
+  const connectDisabled =
+    (host.proxyEnabled && !host.agentOnline) ||
+    (provided && (host.proxyEnabled || !host.address.trim()))
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col">
@@ -60,13 +65,13 @@ export function HostDetail({
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {sessionOpen ? (
+            {sessionOpen && !provided ? (
               <div className="inline-flex">
                 <Button
                   variant="primary"
                   className="!rounded-r-none"
                   onClick={onConnect}
-                  disabled={host.proxyEnabled && !host.agentOnline}
+                  disabled={connectDisabled}
                 >
                   <TerminalSquare className="h-4 w-4" />
                   Reconnect
@@ -75,7 +80,7 @@ export function HostDetail({
                   variant="primary"
                   className="!rounded-l-none !border-l-0 !px-2"
                   onClick={onNewTerm}
-                  disabled={host.proxyEnabled && !host.agentOnline}
+                  disabled={connectDisabled}
                   title="New terminal"
                   aria-label="New terminal"
                 >
@@ -83,16 +88,12 @@ export function HostDetail({
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="primary"
-                onClick={onConnect}
-                disabled={host.proxyEnabled && !host.agentOnline}
-              >
+              <Button variant="primary" onClick={onConnect} disabled={connectDisabled}>
                 <TerminalSquare className="h-4 w-4" />
-                Connect
+                {provided ? 'Open terminal' : 'Connect'}
               </Button>
             )}
-            {!host.proxyEnabled ? (
+            {!host.proxyEnabled && !provided ? (
               <Button
                 variant="outline"
                 onClick={() => externalMut.mutate()}

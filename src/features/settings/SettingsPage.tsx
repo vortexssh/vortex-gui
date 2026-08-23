@@ -12,10 +12,12 @@ import {
   api,
   parseCommandError,
   type SettingsPublic,
+  type SystemTerminal,
   type TerminalLayout,
 } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Toggle } from '@/components/ui/Toggle'
 import { layoutOf, toast, useUiStore } from '@/store/uiStore'
 
@@ -39,7 +41,8 @@ export function SettingsPage() {
   const [webUrl, setWebUrl] = useState('')
   const [syncOnStart, setSyncOnStart] = useState(true)
   const [terminalLayout, setTerminalLayout] = useState<TerminalLayout>('tabs')
-  const [sshCommand, setSshCommand] = useState('ssh')
+  const [systemTerminal, setSystemTerminal] = useState<SystemTerminal>('kitty')
+  const [sshCommand, setSshCommand] = useState('kitty +kitten ssh')
   const [exportPw, setExportPw] = useState('')
   const [importPw, setImportPw] = useState('')
   const [overwrite, setOverwrite] = useState(false)
@@ -50,12 +53,20 @@ export function SettingsPage() {
     setWebUrl(st.webUrl)
     setSyncOnStart(st.syncOnStart)
     setTerminalLayout(layoutOf(st.terminalLayout))
-    setSshCommand(st.sshCommand?.trim() || 'ssh')
+    setSystemTerminal(systemTerminalOf(st.systemTerminal))
+    setSshCommand(st.sshCommand?.trim() || 'kitty +kitten ssh')
   }, [st])
 
   const saveMut = useMutation({
     mutationFn: () =>
-      api.saveSettings({ coreUrl, webUrl, syncOnStart, terminalLayout, sshCommand }),
+      api.saveSettings({
+        coreUrl,
+        webUrl,
+        syncOnStart,
+        terminalLayout,
+        systemTerminal,
+        sshCommand,
+      }),
     onSuccess: (s) => {
       qc.setQueryData(['settings'], s)
       toast('Settings saved', 'success')
@@ -164,6 +175,8 @@ export function SettingsPage() {
               <TerminalSection
                 value={terminalLayout}
                 onChange={setTerminalLayout}
+                systemTerminal={systemTerminal}
+                onSystemTerminalChange={setSystemTerminal}
                 sshCommand={sshCommand}
                 onSshCommandChange={setSshCommand}
               />
@@ -239,14 +252,43 @@ function CloudSection({
   )
 }
 
+function systemTerminalOf(raw: string | undefined | null): SystemTerminal {
+  switch (raw) {
+    case 'kitty':
+    case 'wezterm':
+    case 'alacritty':
+    case 'ghostty':
+    case 'konsole':
+    case 'gnome-terminal':
+    case 'custom':
+      return raw
+    default:
+      return 'kitty'
+  }
+}
+
+const SYSTEM_TERMINALS: { id: SystemTerminal; label: string; cmd: string }[] = [
+  { id: 'kitty', label: 'kitty', cmd: 'kitty +kitten ssh' },
+  { id: 'wezterm', label: 'WezTerm', cmd: 'wezterm ssh' },
+  { id: 'alacritty', label: 'Alacritty', cmd: 'alacritty -e ssh' },
+  { id: 'ghostty', label: 'Ghostty', cmd: 'ghostty -e ssh' },
+  { id: 'konsole', label: 'Konsole', cmd: 'konsole -e ssh' },
+  { id: 'gnome-terminal', label: 'GNOME Terminal', cmd: 'gnome-terminal -- ssh' },
+  { id: 'custom', label: 'Custom…', cmd: '' },
+]
+
 function TerminalSection({
   value,
   onChange,
+  systemTerminal,
+  onSystemTerminalChange,
   sshCommand,
   onSshCommandChange,
 }: {
   value: TerminalLayout
   onChange: (v: TerminalLayout) => void
+  systemTerminal: SystemTerminal
+  onSystemTerminalChange: (v: SystemTerminal) => void
   sshCommand: string
   onSshCommandChange: (v: string) => void
 }) {
@@ -264,13 +306,20 @@ function TerminalSection({
     {
       id: 'window',
       title: 'Separate window',
-      body: 'Each session opens in its own OS window.',
+      body: 'Each session opens in its own Vortex window.',
+    },
+    {
+      id: 'provided',
+      title: 'Provided terminal',
+      body: 'Connect opens your system terminal (kitty, WezTerm, …) with SSH. Direct hosts only.',
     },
   ]
+  const presetCmd = SYSTEM_TERMINALS.find((t) => t.id === systemTerminal)?.cmd
+
   return (
     <section className="flex flex-col gap-3">
       <h3 className="font-mono text-xs uppercase tracking-wider text-neon">Terminal</h3>
-      <p className="text-sm text-dim">How Connect places the in-app SSH session.</p>
+      <p className="text-sm text-dim">How Connect places the SSH session.</p>
       <div className="flex flex-col gap-2">
         {options.map((opt) => {
           const on = value === opt.id
@@ -291,21 +340,50 @@ function TerminalSection({
           )
         })}
       </div>
-      <div className="mt-2 border-t border-border pt-4">
-        <Input
-          label="SSH command"
-          value={sshCommand}
-          onChange={(e) => onSshCommandChange(e.target.value)}
-          placeholder="ssh"
-          className="font-mono"
-        />
-        <p className="mt-2 text-sm text-muted">
-          Used by External on direct hosts. Default <span className="font-mono text-dim">ssh</span>.
-          Prefer a terminal wrapper so a window opens — e.g.{' '}
-          <span className="font-mono text-dim">kitty +kitten ssh</span>,{' '}
-          <span className="font-mono text-dim">wezterm ssh</span>.
-        </p>
-      </div>
+      {value === 'provided' ? (
+        <div className="mt-2 flex flex-col gap-3 border-t border-border pt-4">
+          <Select
+            label="System terminal"
+            value={systemTerminal}
+            onChange={(e) => {
+              const next = systemTerminalOf(e.target.value)
+              onSystemTerminalChange(next)
+              const cmd = SYSTEM_TERMINALS.find((t) => t.id === next)?.cmd
+              if (cmd) onSshCommandChange(cmd)
+            }}
+          >
+            {SYSTEM_TERMINALS.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </Select>
+          {systemTerminal === 'custom' ? (
+            <Input
+              label="SSH command"
+              value={sshCommand}
+              onChange={(e) => onSshCommandChange(e.target.value)}
+              placeholder="kitty +kitten ssh"
+              className="font-mono"
+            />
+          ) : (
+            <p className="font-mono text-xs text-muted">
+              Launches: <span className="text-dim">{presetCmd}</span>
+            </p>
+          )}
+          <p className="text-sm text-muted">
+            Proxy / NAT hosts still need Tabs, Split, or Window — system SSH needs a reachable
+            address.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-2 border-t border-border pt-4">
+          <p className="text-sm text-muted">
+            Direct hosts also have an External button that uses the same launcher. Switch to
+            Provided terminal to pick kitty / WezTerm / …
+          </p>
+        </div>
+      )}
     </section>
   )
 }

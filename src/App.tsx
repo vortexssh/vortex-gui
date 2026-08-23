@@ -85,6 +85,15 @@ export default function App() {
 
   async function onConnect(mode: 'reconnect' | 'new' = 'reconnect') {
     if (!selected) return
+    if (layout === 'provided') {
+      try {
+        await api.openSystemSsh(selected.id)
+        toast('Launched system terminal', 'success')
+      } catch (e) {
+        toast(parseCommandError(e).message, 'error')
+      }
+      return
+    }
     if (layout === 'window') {
       try {
         await openTermWindow(selected.id, selected.name, mode === 'new')

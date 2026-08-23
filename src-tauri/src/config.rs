@@ -66,3 +66,61 @@ pub fn effective_ssh_command(stored: &str) -> String {
         v.to_string()
     }
 }
+
+/// Which OS terminal launches External / provided-layout Connect.
+pub fn normalize_system_terminal(raw: &str) -> String {
+    match raw.trim() {
+        "kitty" | "wezterm" | "alacritty" | "ghostty" | "konsole" | "gnome-terminal" | "custom" => {
+            raw.trim().to_string()
+        }
+        _ => "kitty".into(),
+    }
+}
+
+/// Resolve launcher argv prefix from preset (+ custom override).
+pub fn resolve_ssh_command(system_terminal: &str, custom: &str) -> String {
+    match normalize_system_terminal(system_terminal).as_str() {
+        "wezterm" => "wezterm ssh".into(),
+        "alacritty" => "alacritty -e ssh".into(),
+        "ghostty" => "ghostty -e ssh".into(),
+        "konsole" => "konsole -e ssh".into(),
+        "gnome-terminal" => "gnome-terminal -- ssh".into(),
+        "custom" => effective_ssh_command(custom),
+        // kitty (default)
+        _ => "kitty +kitten ssh".into(),
+    }
+}
+
+/// Infer preset from a previously saved freeform command (migration / UX).
+pub fn infer_system_terminal(command: &str) -> String {
+    let c = effective_ssh_command(command);
+    match c.as_str() {
+        "kitty +kitten ssh" | "kitty ssh" => "kitty".into(),
+        "wezterm ssh" => "wezterm".into(),
+        "alacritty -e ssh" => "alacritty".into(),
+        "ghostty -e ssh" => "ghostty".into(),
+        "konsole -e ssh" => "konsole".into(),
+        "gnome-terminal -- ssh" => "gnome-terminal".into(),
+        "ssh" => "custom".into(),
+        _ => "custom".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_presets() {
+        assert_eq!(resolve_ssh_command("kitty", ""), "kitty +kitten ssh");
+        assert_eq!(resolve_ssh_command("wezterm", "ignored"), "wezterm ssh");
+        assert_eq!(resolve_ssh_command("custom", "foot ssh"), "foot ssh");
+        assert_eq!(resolve_ssh_command("custom", ""), "ssh");
+    }
+
+    #[test]
+    fn infer_from_command() {
+        assert_eq!(infer_system_terminal("kitty +kitten ssh"), "kitty");
+        assert_eq!(infer_system_terminal("weird"), "custom");
+    }
+}

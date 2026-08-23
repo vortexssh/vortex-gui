@@ -123,9 +123,11 @@ pub struct Settings {
     pub account_email: String,
     pub last_sync_at: Option<DateTime<Utc>>,
     pub sync_on_start: bool,
-    /// tabs (default) | split | window
+    /// tabs (default) | split | window | provided
     pub terminal_layout: String,
-    /// Interactive direct SSH launcher; default "ssh" (e.g. "kitty +kitten ssh").
+    /// kitty | wezterm | alacritty | ghostty | konsole | gnome-terminal | custom
+    pub system_terminal: String,
+    /// Interactive launcher when system_terminal is custom (also stores last resolved cmd).
     pub ssh_command: String,
 }
 
@@ -139,7 +141,8 @@ impl Default for Settings {
             last_sync_at: None,
             sync_on_start: true,
             terminal_layout: "tabs".into(),
-            ssh_command: "ssh".into(),
+            system_terminal: "kitty".into(),
+            ssh_command: "kitty +kitten ssh".into(),
         }
     }
 }
@@ -154,12 +157,16 @@ pub struct SettingsPublic {
     pub last_sync_at: Option<DateTime<Utc>>,
     pub sync_on_start: bool,
     pub terminal_layout: String,
+    pub system_terminal: String,
     pub ssh_command: String,
     pub linked: bool,
 }
 
 impl Settings {
     pub fn public(&self) -> SettingsPublic {
+        let system_terminal = crate::config::normalize_system_terminal(&self.system_terminal);
+        let ssh_command =
+            crate::config::resolve_ssh_command(&system_terminal, &self.ssh_command);
         SettingsPublic {
             core_url: self.core_url.clone(),
             web_url: self.web_url.clone(),
@@ -167,7 +174,8 @@ impl Settings {
             last_sync_at: self.last_sync_at,
             sync_on_start: self.sync_on_start,
             terminal_layout: normalize_terminal_layout(&self.terminal_layout),
-            ssh_command: crate::config::effective_ssh_command(&self.ssh_command),
+            system_terminal,
+            ssh_command,
             linked: looks_like_session_token(&self.api_key),
         }
     }
@@ -175,7 +183,7 @@ impl Settings {
 
 pub fn normalize_terminal_layout(raw: &str) -> String {
     match raw.trim() {
-        "split" | "window" | "tabs" => raw.trim().to_string(),
+        "split" | "window" | "tabs" | "provided" => raw.trim().to_string(),
         _ => "tabs".into(),
     }
 }

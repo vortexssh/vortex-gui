@@ -315,11 +315,18 @@ ON CONFLICT(key) DO UPDATE SET value=excluded.value
         if let Some(v) = self.get_setting("terminal_layout")? {
             st.terminal_layout = crate::db::models::normalize_terminal_layout(&v);
         }
-        st.ssh_command = "ssh".into();
+        st.ssh_command = "kitty +kitten ssh".into();
         if let Some(v) = self.get_setting("ssh_command")? {
             let t = v.trim();
             if !t.is_empty() {
                 st.ssh_command = t.to_string();
+            }
+        }
+        st.system_terminal = crate::config::infer_system_terminal(&st.ssh_command);
+        if let Some(v) = self.get_setting("system_terminal")? {
+            let t = v.trim();
+            if !t.is_empty() {
+                st.system_terminal = crate::config::normalize_system_terminal(t);
             }
         }
         if let Some(v) = self.get_setting("last_sync_at")? {
@@ -347,10 +354,11 @@ ON CONFLICT(key) DO UPDATE SET value=excluded.value
             "terminal_layout",
             &crate::db::models::normalize_terminal_layout(&st.terminal_layout),
         )?;
-        self.set_setting(
-            "ssh_command",
-            &crate::config::effective_ssh_command(&st.ssh_command),
-        )?;
+        let system_terminal = crate::config::normalize_system_terminal(&st.system_terminal);
+        let ssh_command =
+            crate::config::resolve_ssh_command(&system_terminal, &st.ssh_command);
+        self.set_setting("system_terminal", &system_terminal)?;
+        self.set_setting("ssh_command", &ssh_command)?;
         if let Some(t) = st.last_sync_at {
             self.set_setting(
                 "last_sync_at",

@@ -40,7 +40,7 @@ export function HostWorkspace({
   const closeTerm = useUiStore((s) => s.closeTerm)
   const sessionOpen = Boolean(selected && termTabs.some((t) => t.hostId === selected.id))
 
-  if (layout === 'window') {
+  if (layout === 'window' || layout === 'provided') {
     return (
       <div className="min-h-0 min-w-0 flex-1 overflow-auto">
         <DetailOrEmpty

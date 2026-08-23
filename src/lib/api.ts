@@ -37,7 +37,18 @@ export interface HostBilling {
   payerName: string | null
 }
 
-export type TerminalLayout = 'tabs' | 'split' | 'window'
+export type TerminalLayout = 'tabs' | 'split' | 'window' | 'provided'
+
+/** OS terminal used when layout is `provided` (or External button). */
+export type SystemTerminal =
+  | 'kitty'
+  | 'wezterm'
+  | 'alacritty'
+  | 'ghostty'
+  | 'konsole'
+  | 'gnome-terminal'
+  | 'custom'
+
 
 export interface SettingsPublic {
   coreUrl: string
@@ -46,7 +57,8 @@ export interface SettingsPublic {
   lastSyncAt: string | null
   syncOnStart: boolean
   terminalLayout: TerminalLayout
-  /** Interactive launcher for External SSH; default `ssh` (e.g. `kitty +kitten ssh`). */
+  systemTerminal: SystemTerminal
+  /** Resolved launcher (preset or custom). */
   sshCommand: string
   linked: boolean
 }
@@ -220,6 +232,7 @@ export const api = {
     webUrl: string
     syncOnStart: boolean
     terminalLayout: TerminalLayout
+    systemTerminal: SystemTerminal
     sshCommand: string
   }) =>
     invoke<SettingsPublic>('save_settings', {
@@ -227,6 +240,7 @@ export const api = {
       webUrl: input.webUrl,
       syncOnStart: input.syncOnStart,
       terminalLayout: input.terminalLayout,
+      systemTerminal: input.systemTerminal,
       sshCommand: input.sshCommand,
     }),
   openSystemSsh: (hostId: string) => invoke<void>('open_system_ssh', { hostId }),
