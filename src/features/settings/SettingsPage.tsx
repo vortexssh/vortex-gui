@@ -39,6 +39,7 @@ export function SettingsPage() {
   const [webUrl, setWebUrl] = useState('')
   const [syncOnStart, setSyncOnStart] = useState(true)
   const [terminalLayout, setTerminalLayout] = useState<TerminalLayout>('tabs')
+  const [sshCommand, setSshCommand] = useState('ssh')
   const [exportPw, setExportPw] = useState('')
   const [importPw, setImportPw] = useState('')
   const [overwrite, setOverwrite] = useState(false)
@@ -49,11 +50,12 @@ export function SettingsPage() {
     setWebUrl(st.webUrl)
     setSyncOnStart(st.syncOnStart)
     setTerminalLayout(layoutOf(st.terminalLayout))
+    setSshCommand(st.sshCommand?.trim() || 'ssh')
   }, [st])
 
   const saveMut = useMutation({
     mutationFn: () =>
-      api.saveSettings({ coreUrl, webUrl, syncOnStart, terminalLayout }),
+      api.saveSettings({ coreUrl, webUrl, syncOnStart, terminalLayout, sshCommand }),
     onSuccess: (s) => {
       qc.setQueryData(['settings'], s)
       toast('Settings saved', 'success')
@@ -159,7 +161,12 @@ export function SettingsPage() {
               />
             ) : null}
             {section === 'terminal' ? (
-              <TerminalSection value={terminalLayout} onChange={setTerminalLayout} />
+              <TerminalSection
+                value={terminalLayout}
+                onChange={setTerminalLayout}
+                sshCommand={sshCommand}
+                onSshCommandChange={setSshCommand}
+              />
             ) : null}
             {section === 'roster' ? (
               <RosterSection
@@ -235,9 +242,13 @@ function CloudSection({
 function TerminalSection({
   value,
   onChange,
+  sshCommand,
+  onSshCommandChange,
 }: {
   value: TerminalLayout
   onChange: (v: TerminalLayout) => void
+  sshCommand: string
+  onSshCommandChange: (v: string) => void
 }) {
   const options: { id: TerminalLayout; title: string; body: string }[] = [
     {
@@ -259,7 +270,7 @@ function TerminalSection({
   return (
     <section className="flex flex-col gap-3">
       <h3 className="font-mono text-xs uppercase tracking-wider text-neon">Terminal</h3>
-      <p className="text-sm text-dim">How Connect places the SSH session.</p>
+      <p className="text-sm text-dim">How Connect places the in-app SSH session.</p>
       <div className="flex flex-col gap-2">
         {options.map((opt) => {
           const on = value === opt.id
@@ -279,6 +290,21 @@ function TerminalSection({
             </button>
           )
         })}
+      </div>
+      <div className="mt-2 border-t border-border pt-4">
+        <Input
+          label="SSH command"
+          value={sshCommand}
+          onChange={(e) => onSshCommandChange(e.target.value)}
+          placeholder="ssh"
+          className="font-mono"
+        />
+        <p className="mt-2 text-sm text-muted">
+          Used by External on direct hosts. Default <span className="font-mono text-dim">ssh</span>.
+          Prefer a terminal wrapper so a window opens — e.g.{' '}
+          <span className="font-mono text-dim">kitty +kitten ssh</span>,{' '}
+          <span className="font-mono text-dim">wezterm ssh</span>.
+        </p>
       </div>
     </section>
   )

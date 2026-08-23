@@ -1,4 +1,4 @@
-import { Folder, Pencil, Plus, Trash2, TerminalSquare } from 'lucide-react'
+import { ExternalLink, Folder, Pencil, Plus, Trash2, TerminalSquare } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, is2faError, parseCommandError, type Host, type SettingsPublic } from '@/lib/api'
 import { Badge } from '@/components/ui/Badge'
@@ -27,6 +27,12 @@ export function HostDetail({
   onOpenFiles,
   sessionOpen,
 }: HostDetailProps) {
+  const externalMut = useMutation({
+    mutationFn: () => api.openSystemSsh(host.id),
+    onSuccess: () => toast('Launched external SSH', 'success'),
+    onError: (e) => toast(parseCommandError(e).message, 'error'),
+  })
+
   return (
     <div className="flex min-h-0 min-w-0 flex-col">
       <div className="border-b border-border px-5 py-4">
@@ -86,6 +92,17 @@ export function HostDetail({
                 Connect
               </Button>
             )}
+            {!host.proxyEnabled ? (
+              <Button
+                variant="outline"
+                onClick={() => externalMut.mutate()}
+                disabled={externalMut.isPending || !host.address.trim()}
+                title={settings?.sshCommand || 'ssh'}
+              >
+                <ExternalLink className="h-4 w-4" />
+                External
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               onClick={onOpenFiles}

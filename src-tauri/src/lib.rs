@@ -59,6 +59,7 @@ pub fn run() {
             commands::billing_update_payer,
             commands::billing_delete_payer,
             commands::billing_advance,
+            commands::open_system_ssh,
             commands::connect_host,
             commands::ssh_write,
             commands::ssh_resize,

@@ -125,6 +125,8 @@ pub struct Settings {
     pub sync_on_start: bool,
     /// tabs (default) | split | window
     pub terminal_layout: String,
+    /// Interactive direct SSH launcher; default "ssh" (e.g. "kitty +kitten ssh").
+    pub ssh_command: String,
 }
 
 impl Default for Settings {
@@ -137,6 +139,7 @@ impl Default for Settings {
             last_sync_at: None,
             sync_on_start: true,
             terminal_layout: "tabs".into(),
+            ssh_command: "ssh".into(),
         }
     }
 }
@@ -151,6 +154,7 @@ pub struct SettingsPublic {
     pub last_sync_at: Option<DateTime<Utc>>,
     pub sync_on_start: bool,
     pub terminal_layout: String,
+    pub ssh_command: String,
     pub linked: bool,
 }
 
@@ -163,6 +167,7 @@ impl Settings {
             last_sync_at: self.last_sync_at,
             sync_on_start: self.sync_on_start,
             terminal_layout: normalize_terminal_layout(&self.terminal_layout),
+            ssh_command: crate::config::effective_ssh_command(&self.ssh_command),
             linked: looks_like_session_token(&self.api_key),
         }
     }

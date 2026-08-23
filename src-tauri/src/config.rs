@@ -56,3 +56,13 @@ pub fn effective_core_url(stored: &str) -> String {
         v.trim_end_matches('/').to_string()
     }
 }
+
+/// Interactive SSH launcher (TUI parity). Default `ssh`; e.g. `kitty +kitten ssh`.
+pub fn effective_ssh_command(stored: &str) -> String {
+    let v = stored.trim();
+    if v.is_empty() {
+        "ssh".into()
+    } else {
+        v.to_string()
+    }
+}

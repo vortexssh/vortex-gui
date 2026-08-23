@@ -46,6 +46,8 @@ export interface SettingsPublic {
   lastSyncAt: string | null
   syncOnStart: boolean
   terminalLayout: TerminalLayout
+  /** Interactive launcher for External SSH; default `ssh` (e.g. `kitty +kitten ssh`). */
+  sshCommand: string
   linked: boolean
 }
 
@@ -218,13 +220,16 @@ export const api = {
     webUrl: string
     syncOnStart: boolean
     terminalLayout: TerminalLayout
+    sshCommand: string
   }) =>
     invoke<SettingsPublic>('save_settings', {
       coreUrl: input.coreUrl,
       webUrl: input.webUrl,
       syncOnStart: input.syncOnStart,
       terminalLayout: input.terminalLayout,
+      sshCommand: input.sshCommand,
     }),
+  openSystemSsh: (hostId: string) => invoke<void>('open_system_ssh', { hostId }),
   health: () => invoke<boolean>('health'),
   getMe: () => invoke<UserMe>('get_me'),
   browserLogin: () => invoke<SettingsPublic>('browser_login'),

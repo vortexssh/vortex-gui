@@ -56,6 +56,7 @@ pub fn save_settings(
     web_url: String,
     sync_on_start: bool,
     terminal_layout: Option<String>,
+    ssh_command: Option<String>,
 ) -> AppResult<SettingsPublic> {
     let store = state.store.lock();
     let mut st = store.load_settings()?;
@@ -65,8 +66,23 @@ pub fn save_settings(
     if let Some(layout) = terminal_layout {
         st.terminal_layout = crate::db::normalize_terminal_layout(&layout);
     }
+    if let Some(cmd) = ssh_command {
+        st.ssh_command = config::effective_ssh_command(&cmd);
+    }
     store.save_settings(&st)?;
     Ok(public_settings(&st))
+}
+
+/// Launch the configured system SSH command for a direct host (TUI parity).
+#[tauri::command]
+pub fn open_system_ssh(state: State<'_, AppState>, host_id: String) -> AppResult<()> {
+    let store = state.store.lock();
+    let host = store.get_host(&host_id)?;
+    let secret = store.get_secret(&host_id)?;
+    let st = store.load_settings()?;
+    let cmd = config::effective_ssh_command(&st.ssh_command);
+    drop(store);
+    ssh::system::spawn_system_ssh(&cmd, &host, secret.as_ref())
 }
 
 #[tauri::command]
