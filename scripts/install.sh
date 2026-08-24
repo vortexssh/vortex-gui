@@ -46,16 +46,31 @@ if [[ -n "${VORTEX_GUI_GITHUB_TOKEN:-}" ]]; then
 fi
 
 fetch_release_json() {
-  local url
+  local url code body
   if [[ "${VERSION}" == "latest" ]]; then
     url="${API_BASE}/releases/latest"
   else
     url="${API_BASE}/releases/tags/v${VERSION#v}"
   fi
-  curl -fsSL "${auth_headers[@]}" \
+  body="$(mktemp)"
+  code="$(curl -sS -o "${body}" -w '%{http_code}' "${auth_headers[@]}" \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    "${url}"
+    "${url}" || true)"
+  if [[ "${code}" != "200" ]]; then
+    echo "error: GitHub release not found (HTTP ${code}) for ${REPO} @ ${VERSION}" >&2
+    echo "  tried: ${url}" >&2
+    if [[ "${code}" == "404" ]]; then
+      echo "  No published release yet. Create one, then retry:" >&2
+      echo "    git tag v0.1.0 && git push origin v0.1.0" >&2
+      echo "  That triggers .github/workflows/release.yml (AppImage / dmg / NSIS)." >&2
+      echo "  If the repo is private, set VORTEX_GUI_GITHUB_TOKEN." >&2
+    fi
+    rm -f "${body}"
+    exit 1
+  fi
+  cat "${body}"
+  rm -f "${body}"
 }
 
 # Prints: <download_url>\t<asset_name>
