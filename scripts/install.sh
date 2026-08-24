@@ -181,7 +181,7 @@ install_linux_appimage() {
 [Desktop Entry]
 Name=Vortex GUI
 Comment=Local-first VortexSSH desktop client
-Exec=${dest}
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 __NV_DISABLE_EXPLICIT_SYNC=1 ${dest}
 Icon=${icon_ref}
 Terminal=false
 Type=Application

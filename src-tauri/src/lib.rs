@@ -24,6 +24,18 @@ pub struct AppState {
 pub fn run() {
     let _ = env_logger::try_init();
 
+    // WebKitGTK + NVIDIA / Wayland often dies with EGL_BAD_PARAMETER / blank window.
+    // See https://v2.tauri.app/develop/debug/linux-graphics/
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+        if std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+            std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
