@@ -2,6 +2,16 @@
 
 Curl-friendly installers for **Vortex GUI** release artifacts (GitHub Releases).
 
+## Regenerating app icons
+
+Source of truth: repo-root [`logo.svg`](../logo.svg).
+
+```bash
+./scripts/gen-icons.sh
+```
+
+This syncs `public/logo.svg` / `public/vortex.svg` and rebuilds `src-tauri/icons/*` (png/ico/icns) for Tauri.
+
 ## One-liners
 
 **Linux / macOS**

@@ -9,6 +9,7 @@ remove_linux() {
   rm -f "${dir}/bin/VortexGUI.AppImage"
   rm -f "${dir}/share/applications/vortex-gui.desktop"
   rm -f "${dir}/share/icons/hicolor/256x256/apps/vortex-gui.png"
+  rm -f "${dir}/share/icons/hicolor/scalable/apps/vortex-gui.svg"
   echo "removed user-local AppImage install under ${dir}"
   if command -v dpkg >/dev/null 2>&1 && dpkg -l vortex-gui >/dev/null 2>&1; then
     echo "note: .deb package still installed — run: sudo apt remove vortex-gui"

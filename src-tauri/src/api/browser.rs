@@ -76,8 +76,9 @@ pub async fn browser_login(web_url: &str) -> Result<BrowserAuthResult, AppError>
 Content-Type: text/html; charset=utf-8
 Connection: close
 
-<!doctype html><html><body style="background:#0a0a0a;color:#39ff14;font-family:'JetBrains Mono',monospace;padding:2rem">
-<h1>VORTEX</h1><p>Login successful. You can close this tab and return to Vortex GUI.</p>
+<!doctype html><html><body style="background:#0a0a0a;color:#39ff14;font-family:'JetBrains Mono',monospace;padding:2rem;display:flex;flex-direction:column;align-items:flex-start;gap:1rem">
+<img src="https://raw.githubusercontent.com/vortexssh/vortex-gui/master/logo.svg" width="72" height="72" alt="Vortex" style="border-radius:14px"/>
+<h1 style="margin:0">VORTEX</h1><p style="margin:0;color:#9ca3af">Login successful. You can close this tab and return to Vortex GUI.</p>
 </body></html>
 "#;
     let _ = stream.write_all(html.replace('\n', "\r\n").as_bytes()).await;

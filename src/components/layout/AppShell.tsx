@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Cloud, CloudOff, Folder, RefreshCw, Server, Settings, Wallet } from 'lucide-react'
+import { Cloud, CloudOff, Folder, RefreshCw, Server, Settings, Wallet } from 'lucide-react'
 import { api, type UserMe } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { TwoFactorBanner } from './TwoFactorBanner'
@@ -29,7 +29,14 @@ export function AppShell({ children, onSync, syncing }: AppShellProps) {
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-neon" strokeWidth={2.25} />
+            <img
+              src="/logo.svg"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 rounded-md"
+              draggable={false}
+            />
             <div className="leading-tight">
               <div className="font-mono text-sm font-semibold tracking-wide text-neon text-glow">
                 VORTEX
