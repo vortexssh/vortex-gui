@@ -4,6 +4,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as B64;
 use chrono::Utc;
 use tauri::{AppHandle, State};
+use tokio_util::sync::CancellationToken;
 
 use crate::api::{
     self, valid_session_token, BillingCalendarResponse, BillingPayer, BillingPayerDetail,
@@ -613,16 +614,42 @@ pub async fn sftp_transfer(
     remote_path: String,
     transfer_id: String,
 ) -> AppResult<()> {
-    ssh::sftp::transfer(
+    let token = CancellationToken::new();
+    {
+        let mut map = state.transfers.lock().await;
+        map.insert(transfer_id.clone(), token.clone());
+    }
+
+    let res = ssh::sftp::transfer(
         &app,
         &host_id,
         &direction,
         &local_path,
         &remote_path,
         &transfer_id,
+        &token,
         state.sftp.as_ref(),
     )
-    .await
+    .await;
+
+    {
+        let mut map = state.transfers.lock().await;
+        map.remove(&transfer_id);
+    }
+
+    res
+}
+
+#[tauri::command]
+pub async fn sftp_cancel(state: State<'_, AppState>, transfer_id: String) -> AppResult<()> {
+    let tok = {
+        let map = state.transfers.lock().await;
+        map.get(&transfer_id).cloned()
+    };
+    if let Some(tok) = tok {
+        tok.cancel();
+    }
+    Ok(())
 }
 
 #[tauri::command]

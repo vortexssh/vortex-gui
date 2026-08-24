@@ -8,6 +8,7 @@ use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_util::sync::CancellationToken;
 
 use crate::db::{Host, Secret};
 use crate::error::AppError;
@@ -201,6 +202,7 @@ pub async fn transfer(
     local_path: &str,
     remote_path: &str,
     transfer_id: &str,
+    cancel: &CancellationToken,
     map: &tokio::sync::Mutex<SftpMap>,
 ) -> Result<(), AppError> {
     let sftp = session(host_id, map).await?;
@@ -211,17 +213,42 @@ pub async fn transfer(
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| remote_path.to_string());
 
-    let result = match direction {
-        "put" => put_path(app, &sftp, &local, remote_path, transfer_id, &name).await,
-        "get" => get_path(app, &sftp, remote_path, &local, transfer_id, &name).await,
+    let result: Result<bool, AppError> = match direction {
+        "put" => put_path(app, &sftp, &local, remote_path, transfer_id, &name, cancel).await,
+        "get" => get_path(app, &sftp, remote_path, &local, transfer_id, &name, cancel).await,
         other => Err(AppError::msg(format!("unknown transfer direction: {other}"))),
     };
 
-    match &result {
-        Ok(()) => emit_progress(app, transfer_id, 1, 1, &name, true, None),
-        Err(e) => emit_progress(app, transfer_id, 0, 1, &name, true, Some(e.to_string())),
+    match result {
+        Ok(cancelled) => {
+            if cancelled {
+                emit_progress(
+                    app,
+                    transfer_id,
+                    1,
+                    1,
+                    &name,
+                    true,
+                    Some("cancelled".to_string()),
+                );
+            } else {
+                emit_progress(app, transfer_id, 1, 1, &name, true, None);
+            }
+            Ok(())
+        }
+        Err(e) => {
+            emit_progress(
+                app,
+                transfer_id,
+                0,
+                1,
+                &name,
+                true,
+                Some(e.to_string()),
+            );
+            Err(e)
+        }
     }
-    result
 }
 
 async fn put_path(
@@ -231,27 +258,43 @@ async fn put_path(
     remote: &str,
     transfer_id: &str,
     label: &str,
-) -> Result<(), AppError> {
+    cancel: &CancellationToken,
+) -> Result<bool, AppError> {
+    // When user hits Cancel, we stop after the current chunk.
+    // We still emit the final `finished=true` event from `transfer()`.
     let meta = tokio::fs::metadata(local).await?;
+    if cancel.is_cancelled() {
+        return Ok(true);
+    }
     if meta.is_dir() {
+        if cancel.is_cancelled() {
+            return Ok(true);
+        }
         if !sftp.try_exists(remote).await.unwrap_or(false) {
             sftp.create_dir(remote).await?;
         }
         let mut rd = tokio::fs::read_dir(local).await?;
         while let Some(entry) = rd.next_entry().await? {
+            if cancel.is_cancelled() {
+                return Ok(true);
+            }
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            Box::pin(put_path(
+            let cancelled = Box::pin(put_path(
                 app,
                 sftp,
                 &entry.path(),
                 &posix_join(remote, &name),
                 transfer_id,
                 label,
+                cancel,
             ))
             .await?;
+            if cancelled {
+                return Ok(true);
+            }
         }
-        return Ok(());
+        return Ok(false);
     }
 
     let total = meta.len();
@@ -260,16 +303,22 @@ async fn put_path(
     let mut buf = vec![0u8; CHUNK];
     let mut done = 0u64;
     loop {
+        if cancel.is_cancelled() {
+            return Ok(true);
+        }
         let n = src.read(&mut buf).await?;
         if n == 0 {
             break;
         }
         dst.write_all(&buf[..n]).await?;
         done += n as u64;
+        if cancel.is_cancelled() {
+            return Ok(true);
+        }
         emit_progress(app, transfer_id, done, total.max(done), label, false, None);
     }
     dst.flush().await?;
-    Ok(())
+    Ok(false)
 }
 
 async fn get_path(
@@ -279,27 +328,41 @@ async fn get_path(
     local: &Path,
     transfer_id: &str,
     label: &str,
-) -> Result<(), AppError> {
+    cancel: &CancellationToken,
+) -> Result<bool, AppError> {
     let meta = sftp.metadata(remote).await?;
+    if cancel.is_cancelled() {
+        return Ok(true);
+    }
     if meta.is_dir() {
+        if cancel.is_cancelled() {
+            return Ok(true);
+        }
         tokio::fs::create_dir_all(local).await?;
         let dir = sftp.read_dir(remote).await?;
         for entry in dir {
+            if cancel.is_cancelled() {
+                return Ok(true);
+            }
             let name = entry.file_name();
             if name == "." || name == ".." {
                 continue;
             }
-            Box::pin(get_path(
+            let cancelled = Box::pin(get_path(
                 app,
                 sftp,
                 &posix_join(remote, &name),
                 &local.join(&name),
                 transfer_id,
                 label,
+                cancel,
             ))
             .await?;
+            if cancelled {
+                return Ok(true);
+            }
         }
-        return Ok(());
+        return Ok(false);
     }
 
     if let Some(parent) = local.parent() {
@@ -311,16 +374,22 @@ async fn get_path(
     let mut buf = vec![0u8; CHUNK];
     let mut done = 0u64;
     loop {
+        if cancel.is_cancelled() {
+            return Ok(true);
+        }
         let n = src.read(&mut buf).await?;
         if n == 0 {
             break;
         }
         dst.write_all(&buf[..n]).await?;
         done += n as u64;
+        if cancel.is_cancelled() {
+            return Ok(true);
+        }
         emit_progress(app, transfer_id, done, total.max(done), label, false, None);
     }
     dst.flush().await?;
-    Ok(())
+    Ok(false)
 }
 
 fn emit_progress(

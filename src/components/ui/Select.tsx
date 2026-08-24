@@ -36,7 +36,12 @@ function flattenLabel(node: ReactNode): string {
 function collectOptions(children: ReactNode): OptionItem[] {
   const out: OptionItem[] = []
   Children.forEach(children, (child) => {
-    if (!isValidElement(child) || child.type !== 'option') return
+    if (!isValidElement(child)) return
+    if (child.type !== 'option') {
+      const nested = (child.props as { children?: ReactNode }).children
+      if (nested !== undefined) out.push(...collectOptions(nested))
+      return
+    }
     const props = child.props as {
       value?: string | number
       children?: ReactNode

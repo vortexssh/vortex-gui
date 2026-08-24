@@ -49,7 +49,6 @@ export type SystemTerminal =
   | 'gnome-terminal'
   | 'custom'
 
-
 export interface SettingsPublic {
   coreUrl: string
   webUrl: string
@@ -285,6 +284,7 @@ export const api = {
   sshClose: (sessionId: string) => invoke<void>('ssh_close', { sessionId }),
   sftpConnect: (hostId: string) => invoke<SftpConnectResult>('sftp_connect', { hostId }),
   sftpClose: (hostId: string) => invoke<void>('sftp_close', { hostId }),
+  sftpCancel: (transferId: string) => invoke<void>('sftp_cancel', { transferId }),
   sftpList: (hostId: string, path: string) =>
     invoke<FsListing>('sftp_list', { hostId, path }),
   sftpMkdir: (hostId: string, path: string) => invoke<void>('sftp_mkdir', { hostId, path }),

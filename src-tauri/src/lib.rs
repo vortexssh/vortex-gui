@@ -7,6 +7,7 @@ mod error;
 mod master_key;
 mod ssh;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -16,6 +17,7 @@ pub struct AppState {
     store: Mutex<db::Store>,
     sessions: Arc<tokio::sync::Mutex<ssh::SessionMap>>,
     sftp: Arc<tokio::sync::Mutex<ssh::SftpMap>>,
+    transfers: Arc<tokio::sync::Mutex<HashMap<String, tokio_util::sync::CancellationToken>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -34,6 +36,7 @@ pub fn run() {
                 store: Mutex::new(store),
                 sessions: Arc::new(tokio::sync::Mutex::new(ssh::SessionMap::new())),
                 sftp: Arc::new(tokio::sync::Mutex::new(ssh::SftpMap::new())),
+                transfers: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             });
             Ok(())
         })
@@ -71,6 +74,7 @@ pub fn run() {
             commands::sftp_rename,
             commands::sftp_remove,
             commands::sftp_transfer,
+            commands::sftp_cancel,
             commands::fs_home,
             commands::fs_list,
             commands::fs_mkdir,

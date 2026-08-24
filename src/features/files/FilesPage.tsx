@@ -11,6 +11,7 @@ import {
   PlugZap,
   Server,
   Trash2,
+  X,
   Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -133,11 +134,9 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
   useEffect(() => {
     const un = listenSftpProgress((ev) => {
       setTransfers((prev) => {
-        const i = prev.findIndex((t) => t.transferId === ev.transferId)
-        if (i < 0) return [...prev, ev].slice(-8)
-        const next = [...prev]
-        next[i] = ev
-        return next
+        const filtered = prev.filter((t) => t.transferId !== ev.transferId)
+        if (ev.finished) return filtered
+        return [...filtered, ev].slice(-8)
       })
     })
     return () => {
@@ -413,11 +412,21 @@ export function FilesPage({ hosts, selectedId, onSelectHost }: FilesPageProps) {
             const pct = t.total > 0 ? Math.min(100, Math.round((t.done / t.total) * 100)) : t.finished ? 100 : 0
             return (
               <div key={t.transferId} className="mb-1 last:mb-0">
-                <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted">
-                  <span className="truncate text-dim">{t.name}</span>
-                  <span className={t.error ? 'text-danger' : 'text-neon'}>
-                    {t.error ? t.error : t.finished ? 'done' : `${pct}%`}
-                  </span>
+                <div className="flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-wider text-muted">
+                  <span className="min-w-0 flex-1 truncate text-dim">{t.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={t.error ? 'text-danger' : 'text-neon'}>{t.error ? t.error : `${pct}%`}</span>
+                    <Button
+                      variant="ghost"
+                      className="!px-2 !py-0.5 !text-xs"
+                      disabled={t.finished}
+                      onClick={() => void api.sftpCancel(t.transferId)}
+                      title="Cancel transfer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-panel">
                   <div className="h-full bg-neon/70" style={{ width: `${pct}%` }} />
