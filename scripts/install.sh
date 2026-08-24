@@ -177,11 +177,38 @@ install_linux_appimage() {
     icon_ref="${hicolor}/128x128/apps/vortex-gui.png"
   fi
 
+  # AppImage ships its own libwayland-client; on modern Wayland/Mesa that yields
+  # "Could not create default EGL display: EGL_BAD_PARAMETER". Force the host lib.
+  local wayland_client=""
+  for cand in \
+    /usr/lib/libwayland-client.so.0 \
+    /usr/lib64/libwayland-client.so.0 \
+    /usr/lib/x86_64-linux-gnu/libwayland-client.so.0 \
+    /usr/lib/aarch64-linux-gnu/libwayland-client.so.0; do
+    if [[ -e "${cand}" ]]; then
+      wayland_client="${cand}"
+      break
+    fi
+  done
+
+  local exec_env="WEBKIT_DISABLE_DMABUF_RENDERER=1 __NV_DISABLE_EXPLICIT_SYNC=1"
+  if [[ -n "${wayland_client}" ]]; then
+    exec_env="LD_PRELOAD=${wayland_client} ${exec_env}"
+  fi
+
+  # Thin wrapper so CLI launch matches .desktop (AppImage argv0 quirks).
+  local wrapper="${bin_dir}/vortex-gui"
+  cat >"${wrapper}" <<EOF
+#!/usr/bin/env bash
+exec env ${exec_env} "${dest}" "\$@"
+EOF
+  chmod 755 "${wrapper}"
+
   cat >"${apps}/vortex-gui.desktop" <<EOF
 [Desktop Entry]
 Name=Vortex GUI
 Comment=Local-first VortexSSH desktop client
-Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 __NV_DISABLE_EXPLICIT_SYNC=1 ${dest}
+Exec=env ${exec_env} ${dest}
 Icon=${icon_ref}
 Terminal=false
 Type=Application
@@ -201,8 +228,12 @@ EOF
   fi
 
   echo "installed AppImage → ${dest}"
+  echo "launcher → ${wrapper}"
   echo "desktop entry → ${apps}/vortex-gui.desktop"
   echo "icon → ${icon_ref}"
+  if [[ -n "${wayland_client}" ]]; then
+    echo "wayland preload → ${wayland_client}"
+  fi
   case ":${PATH}:" in
     *":${bin_dir}:"*) ;;
     *)
