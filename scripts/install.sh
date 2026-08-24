@@ -74,11 +74,13 @@ fetch_release_json() {
 }
 
 # Prints: <download_url>\t<asset_name>
+# Args: os arch preferred /path/to/release.json
 pick_asset() {
-  python3 - "$1" "$2" "$3" <<'PY'
+  python3 - "$1" "$2" "$3" "$4" <<'PY'
 import json, sys
-os_name, arch, preferred = sys.argv[1:4]
-rel = json.load(sys.stdin)
+os_name, arch, preferred, path = sys.argv[1:5]
+with open(path, encoding="utf-8") as f:
+    rel = json.load(f)
 assets = rel.get("assets") or []
 
 def name(a):
@@ -136,9 +138,11 @@ install_linux_appimage() {
   local bin_dir="${dir}/bin"
   local apps="${dir}/share/applications"
   local icons="${dir}/share/icons/hicolor/256x256/apps"
-  mkdir -p "${bin_dir}" "${apps}" "${icons}"
+  mkdir -p "${bin_dir}" "${apps}" "${icons}" "${dir}/share/icons/hicolor/scalable/apps"
   local dest="${bin_dir}/VortexGUI.AppImage"
   install -m 755 "${src}" "${dest}"
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/logo.svg" \
+    -o "${dir}/share/icons/hicolor/scalable/apps/vortex-gui.svg" 2>/dev/null || true
   curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/src-tauri/icons/128x128.png" \
     -o "${icons}/vortex-gui.png" 2>/dev/null || true
   cat >"${apps}/vortex-gui.desktop" <<EOF
@@ -239,7 +243,7 @@ main() {
   local release_json line asset_url asset_name tmp
   release_json="$(mktemp)"
   fetch_release_json >"${release_json}"
-  line="$(pick_asset "${os}" "${arch}" "${PREFERRED_LINUX}" <"${release_json}")"
+  line="$(pick_asset "${os}" "${arch}" "${PREFERRED_LINUX}" "${release_json}")"
   rm -f "${release_json}"
   asset_url="${line%%$'\t'*}"
   asset_name="${line#*$'\t'}"
