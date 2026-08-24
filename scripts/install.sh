@@ -137,27 +137,72 @@ install_linux_appimage() {
   local dir="${VORTEX_GUI_DIR:-${HOME}/.local}"
   local bin_dir="${dir}/bin"
   local apps="${dir}/share/applications"
-  local icons="${dir}/share/icons/hicolor/256x256/apps"
-  mkdir -p "${bin_dir}" "${apps}" "${icons}" "${dir}/share/icons/hicolor/scalable/apps"
+  local hicolor="${dir}/share/icons/hicolor"
+  mkdir -p "${bin_dir}" "${apps}" \
+    "${hicolor}/32x32/apps" \
+    "${hicolor}/64x64/apps" \
+    "${hicolor}/128x128/apps" \
+    "${hicolor}/256x256/apps" \
+    "${hicolor}/512x512/apps" \
+    "${hicolor}/scalable/apps"
+
   local dest="${bin_dir}/VortexGUI.AppImage"
   install -m 755 "${src}" "${dest}"
-  curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/logo.svg" \
-    -o "${dir}/share/icons/hicolor/scalable/apps/vortex-gui.svg" 2>/dev/null || true
+
+  # PNGs in the matching size dirs (wrong-size dirs → GNOME shows a generic gear).
+  local icon_png="${hicolor}/512x512/apps/vortex-gui.png"
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/src-tauri/icons/icon.png" \
+    -o "${icon_png}" || true
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/src-tauri/icons/32x32.png" \
+    -o "${hicolor}/32x32/apps/vortex-gui.png" 2>/dev/null || true
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/src-tauri/icons/64x64.png" \
+    -o "${hicolor}/64x64/apps/vortex-gui.png" 2>/dev/null || true
   curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/src-tauri/icons/128x128.png" \
-    -o "${icons}/vortex-gui.png" 2>/dev/null || true
+    -o "${hicolor}/128x128/apps/vortex-gui.png" 2>/dev/null || true
+  # 256: scale from 512 when available
+  if [[ -f "${icon_png}" ]] && command -v convert >/dev/null 2>&1; then
+    convert "${icon_png}" -resize 256x256 "${hicolor}/256x256/apps/vortex-gui.png" 2>/dev/null || \
+      cp -f "${icon_png}" "${hicolor}/256x256/apps/vortex-gui.png"
+  elif [[ -f "${icon_png}" ]]; then
+    cp -f "${icon_png}" "${hicolor}/256x256/apps/vortex-gui.png"
+  fi
+  curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/logo.svg" \
+    -o "${hicolor}/scalable/apps/vortex-gui.svg" 2>/dev/null || true
+
+  # Absolute Icon= is what GNOME actually resolves for user .desktop files.
+  local icon_ref="vortex-gui"
+  if [[ -f "${icon_png}" ]]; then
+    icon_ref="${icon_png}"
+  elif [[ -f "${hicolor}/128x128/apps/vortex-gui.png" ]]; then
+    icon_ref="${hicolor}/128x128/apps/vortex-gui.png"
+  fi
+
   cat >"${apps}/vortex-gui.desktop" <<EOF
 [Desktop Entry]
 Name=Vortex GUI
 Comment=Local-first VortexSSH desktop client
 Exec=${dest}
-Icon=vortex-gui
+Icon=${icon_ref}
 Terminal=false
 Type=Application
 Categories=Network;Utility;
-StartupWMClass=Vortex GUI
+StartupWMClass=vortex-gui
 EOF
+
+  # Refresh caches so the grid picks it up immediately.
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "${apps}" 2>/dev/null || true
+  fi
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t "${hicolor}" 2>/dev/null || true
+  fi
+  if command -v xdg-desktop-menu >/dev/null 2>&1; then
+    xdg-desktop-menu forceupdate 2>/dev/null || true
+  fi
+
   echo "installed AppImage → ${dest}"
   echo "desktop entry → ${apps}/vortex-gui.desktop"
+  echo "icon → ${icon_ref}"
   case ":${PATH}:" in
     *":${bin_dir}:"*) ;;
     *)
