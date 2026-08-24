@@ -206,13 +206,16 @@ EOF
 
   cat >"${apps}/vortex-gui.desktop" <<EOF
 [Desktop Entry]
+Version=1.5
 Name=Vortex GUI
 Comment=Local-first VortexSSH desktop client
-Exec=env ${exec_env} ${dest}
+Exec=${wrapper}
+TryExec=${wrapper}
 Icon=${icon_ref}
 Terminal=false
 Type=Application
-Categories=Network;Utility;
+Categories=Network;
+StartupNotify=true
 StartupWMClass=vortex-gui
 EOF
 
@@ -227,6 +230,12 @@ EOF
     xdg-desktop-menu forceupdate 2>/dev/null || true
   fi
 
+  # AppImage path must stay user-owned (root-owned breaks some session launchers).
+  if [[ "${EUID}" -eq 0 ]] && [[ -n "${SUDO_UID:-}" ]]; then
+    chown "${SUDO_UID}:${SUDO_GID}" "${dest}" "${wrapper}" "${apps}/vortex-gui.desktop" 2>/dev/null || true
+    chown -R "${SUDO_UID}:${SUDO_GID}" "${hicolor}"/*/apps/vortex-gui.* 2>/dev/null || true
+  fi
+
   echo "installed AppImage → ${dest}"
   echo "launcher → ${wrapper}"
   echo "desktop entry → ${apps}/vortex-gui.desktop"
@@ -234,6 +243,7 @@ EOF
   if [[ -n "${wayland_client}" ]]; then
     echo "wayland preload → ${wayland_client}"
   fi
+  echo "launch: ${wrapper}   (menu uses this wrapper — not VortexGUI.AppImage directly)"
   case ":${PATH}:" in
     *":${bin_dir}:"*) ;;
     *)
