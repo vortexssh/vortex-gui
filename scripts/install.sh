@@ -149,6 +149,32 @@ install_linux_appimage() {
   local dest="${bin_dir}/VortexGUI.AppImage"
   install -m 755 "${src}" "${dest}"
 
+  # Bundled libwayland in CI AppImages breaks Mesa 25+ (EGL_BAD_PARAMETER). Strip it locally.
+  local unbundle_script=""
+  for cand in \
+    "${VORTEX_GUI_UNBUNDLE_SCRIPT:-}" \
+    "$(dirname "${BASH_SOURCE[0]}")/appimage-unbundle-wayland.sh" \
+    "/tmp/vortex-gui-appimage-unbundle-wayland.sh"; do
+    if [[ -n "${cand}" && -f "${cand}" ]]; then
+      unbundle_script="${cand}"
+      break
+    fi
+  done
+  if [[ -z "${unbundle_script}" ]]; then
+    local unbundle_tmp
+    unbundle_tmp="$(mktemp)"
+    curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/scripts/appimage-unbundle-wayland.sh" \
+      -o "${unbundle_tmp}"
+    chmod +x "${unbundle_tmp}"
+    unbundle_script="${unbundle_tmp}"
+  fi
+  if [[ -x "${unbundle_script}" ]]; then
+    echo "patch AppImage (remove bundled libwayland)…"
+    if ! "${unbundle_script}" "${dest}"; then
+      echo "warning: AppImage wayland patch failed — launcher wrapper still applies LD_PRELOAD" >&2
+    fi
+  fi
+
   # PNGs in the matching size dirs (wrong-size dirs → GNOME shows a generic gear).
   local icon_png="${hicolor}/512x512/apps/vortex-gui.png"
   curl -fsSL "https://raw.githubusercontent.com/${REPO}/master/src-tauri/icons/icon.png" \
@@ -191,16 +217,28 @@ install_linux_appimage() {
     fi
   done
 
-  local exec_env="WEBKIT_DISABLE_DMABUF_RENDERER=1 __NV_DISABLE_EXPLICIT_SYNC=1"
-  if [[ -n "${wayland_client}" ]]; then
-    exec_env="LD_PRELOAD=${wayland_client} ${exec_env}"
-  fi
-
-  # Thin wrapper so CLI launch matches .desktop (AppImage argv0 quirks).
+  # Wrapper: export env (WebKit children inherit LD_PRELOAD), keep PATH for FUSE mount from menus.
   local wrapper="${bin_dir}/vortex-gui"
   cat >"${wrapper}" <<EOF
 #!/usr/bin/env bash
-exec env ${exec_env} "${dest}" "\$@"
+set -euo pipefail
+APP="${dest}"
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\${PATH:-}"
+export DESKTOPINTEGRATION=1
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export __NV_DISABLE_EXPLICIT_SYNC=1
+for cand in \\
+  /usr/lib/libwayland-client.so.0 \\
+  /usr/lib64/libwayland-client.so.0 \\
+  /usr/lib/x86_64-linux-gnu/libwayland-client.so.0 \\
+  /usr/lib/aarch64-linux-gnu/libwayland-client.so.0; do
+  if [[ -e "\${cand}" ]]; then
+    export LD_PRELOAD="\${cand}\${LD_PRELOAD:+:\${LD_PRELOAD}}"
+    break
+  fi
+done
+exec "\${APP}" "\$@"
 EOF
   chmod 755 "${wrapper}"
 
@@ -230,11 +268,17 @@ EOF
     xdg-desktop-menu forceupdate 2>/dev/null || true
   fi
 
-  # AppImage path must stay user-owned (root-owned breaks some session launchers).
-  if [[ "${EUID}" -eq 0 ]] && [[ -n "${SUDO_UID:-}" ]]; then
-    chown "${SUDO_UID}:${SUDO_GID}" "${dest}" "${wrapper}" "${apps}/vortex-gui.desktop" 2>/dev/null || true
-    chown -R "${SUDO_UID}:${SUDO_GID}" "${hicolor}"/*/apps/vortex-gui.* 2>/dev/null || true
+  # Must be owned by the desktop user (root-owned breaks GNOME app launch).
+  local uid gid
+  if [[ "${EUID}" -eq 0 ]]; then
+    uid="${SUDO_UID}"
+    gid="${SUDO_GID}"
+  else
+    uid="$(id -u)"
+    gid="$(id -g)"
   fi
+  chown "${uid}:${gid}" "${dest}" "${wrapper}" "${apps}/vortex-gui.desktop" 2>/dev/null || true
+  chown -R "${uid}:${gid}" "${hicolor}"/*/apps/vortex-gui.* 2>/dev/null || true
 
   echo "installed AppImage → ${dest}"
   echo "launcher → ${wrapper}"
@@ -315,6 +359,12 @@ install_macos() {
 }
 
 main() {
+  if [[ "${EUID}" -eq 0 ]] && [[ -z "${SUDO_UID:-}" ]]; then
+    echo "error: do not run the installer as root." >&2
+    echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/master/scripts/install.sh | bash" >&2
+    exit 1
+  fi
+
   echo "Vortex GUI installer"
   echo "  repo=${REPO}  version=${VERSION}  os=${os}  arch=${arch}"
 

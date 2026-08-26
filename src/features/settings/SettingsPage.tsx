@@ -199,6 +199,17 @@ export function SettingsPage() {
                 webUrl={webUrl}
                 setCoreUrl={setCoreUrl}
                 setWebUrl={setWebUrl}
+                onResetUrls={async () => {
+                  try {
+                    const d = await api.resetCloudUrls()
+                    setCoreUrl(d.coreUrl)
+                    setWebUrl(d.webUrl)
+                    await qc.invalidateQueries({ queryKey: ['settings'] })
+                    toast('URLs reset', 'success')
+                  } catch (e) {
+                    toast(parseCommandError(e).message, 'error')
+                  }
+                }}
               />
             ) : null}
           </div>
@@ -442,12 +453,16 @@ function AdvancedSection({
   webUrl,
   setCoreUrl,
   setWebUrl,
+  onResetUrls,
 }: {
   coreUrl: string
   webUrl: string
   setCoreUrl: (v: string) => void
   setWebUrl: (v: string) => void
+  onResetUrls: () => void | Promise<void>
 }) {
+  const [resetting, setResetting] = useState(false)
+
   return (
     <section className="flex flex-col gap-3">
       <h3 className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-muted">
@@ -459,6 +474,18 @@ function AdvancedSection({
       </p>
       <Input label="Vortex Web URL" value={webUrl} onChange={(e) => setWebUrl(e.target.value)} />
       <Input label="Vortex Core URL" value={coreUrl} onChange={(e) => setCoreUrl(e.target.value)} />
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          disabled={resetting}
+          onClick={() => {
+            setResetting(true)
+            void Promise.resolve(onResetUrls()).finally(() => setResetting(false))
+          }}
+        >
+          {resetting ? 'Resetting…' : 'Reset'}
+        </Button>
+      </div>
     </section>
   )
 }

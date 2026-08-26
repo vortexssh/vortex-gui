@@ -80,6 +80,23 @@ pub fn save_settings(
     Ok(public_settings(&st))
 }
 
+/// Race getjson mirrors, apply Core/Web URLs, return updated settings + mirror meta.
+/// Always applies (explicit Reset). Startup auto-refresh only touches stock defaults.
+#[tauri::command]
+pub async fn reset_cloud_urls(
+    state: State<'_, AppState>,
+) -> AppResult<crate::discover::DiscoveredUrls> {
+    let discovered = crate::discover::discover_urls().await?;
+    {
+        let store = state.store.lock();
+        let mut st = store.load_settings()?;
+        st.core_url = discovered.core_url.clone();
+        st.web_url = discovered.web_url.clone();
+        store.save_settings(&st)?;
+    }
+    Ok(discovered)
+}
+
 /// Launch the configured system SSH command for a direct host (TUI parity).
 #[tauri::command]
 pub fn open_system_ssh(state: State<'_, AppState>, host_id: String) -> AppResult<()> {

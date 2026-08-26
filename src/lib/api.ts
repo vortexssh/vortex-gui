@@ -223,6 +223,14 @@ export function userSatisfies2faPolicy(user: UserMe | null): boolean {
   return user.is2faEnabled
 }
 
+export type DiscoveredUrls = {
+  coreUrl: string
+  webUrl: string
+  infoUrl: string
+  mirror: string
+  latencyMs: number
+}
+
 export const api = {
   listHosts: () => invoke<Host[]>('list_hosts'),
   getSettings: () => invoke<SettingsPublic>('get_settings'),
@@ -242,6 +250,7 @@ export const api = {
       systemTerminal: input.systemTerminal,
       sshCommand: input.sshCommand,
     }),
+  resetCloudUrls: () => invoke<DiscoveredUrls>('reset_cloud_urls'),
   openSystemSsh: (hostId: string) => invoke<void>('open_system_ssh', { hostId }),
   health: () => invoke<boolean>('health'),
   getMe: () => invoke<UserMe>('get_me'),

@@ -3,6 +3,7 @@ mod commands;
 mod config;
 mod crypto;
 mod db;
+mod discover;
 mod error;
 mod master_key;
 mod ssh;
@@ -50,12 +51,42 @@ pub fn run() {
                 sftp: Arc::new(tokio::sync::Mutex::new(ssh::SftpMap::new())),
                 transfers: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             });
+            // First launch / stock URLs: race getjson mirrors if user never customized.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let Some(state) = handle.try_state::<AppState>() else {
+                    return;
+                };
+                let (core, web) = {
+                    let store = state.store.lock();
+                    match store.load_settings() {
+                        Ok(st) => (st.core_url, st.web_url),
+                        Err(_) => return,
+                    }
+                };
+                if let Ok(Some(d)) = discover::refresh_if_stock(&core, &web).await {
+                    let store = state.store.lock();
+                    if let Ok(mut st) = store.load_settings() {
+                        if discover::urls_are_stock(&st.core_url, &st.web_url) {
+                            st.core_url = d.core_url;
+                            st.web_url = d.web_url;
+                            let _ = store.save_settings(&st);
+                            log::info!(
+                                "cloud URLs from getjson.{} ({} ms)",
+                                d.mirror,
+                                d.latency_ms
+                            );
+                        }
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_hosts,
             commands::get_settings,
             commands::save_settings,
+            commands::reset_cloud_urls,
             commands::health,
             commands::get_me,
             commands::browser_login,

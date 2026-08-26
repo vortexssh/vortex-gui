@@ -1,6 +1,6 @@
 [package]
 name = "vortex-gui"
-version = "0.1.1"
+version = "0.1.3"
 description = "Local-first VortexSSH desktop client"
 authors = ["VortexSSH"]
 edition = "2021"
