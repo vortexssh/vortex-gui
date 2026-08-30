@@ -132,6 +132,7 @@ export function BillingPage() {
         if (h.is_next) nextDateByHost.set(h.id, day.date)
       }
     }
+
     let total = 0
     let remaining = 0
     for (const day of days) {
@@ -142,6 +143,10 @@ export function BillingPage() {
         total += amt
         if (h.is_next) {
           remaining += amt
+          continue
+        }
+        if (h.next_renewal_at) {
+          if (day.date > h.next_renewal_at) remaining += amt
           continue
         }
         const nextDate = nextDateByHost.get(h.id)
@@ -194,6 +199,10 @@ export function BillingPage() {
               <p className="mt-1 text-2xl font-semibold text-fg-strong">
                 {monthStats.ready ? formatMoney(monthStats.remaining) : '—'}{' '}
                 <span className="font-mono text-base text-neon">{currency}</span>
+              </p>
+              <p className="mt-1 font-mono text-[10px] text-muted">
+                Next dues
+                {viewingCurrentMonth ? ' · includes overdue · excludes paid' : ''}
               </p>
             </div>
             <div className="rounded-lg border border-border bg-panel px-4 py-3">

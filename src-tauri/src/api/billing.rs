@@ -53,6 +53,7 @@ pub struct BillingHostBrief {
     pub country_code: Option<String>,
     #[serde(default)]
     pub is_next: bool,
+    pub next_renewal_at: Option<String>,
     pub cycle: Option<String>,
     pub payer_id: Option<String>,
     pub payer_name: Option<String>,
