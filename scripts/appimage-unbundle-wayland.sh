@@ -47,7 +47,7 @@ for appimage in "${APPIMAGES[@]}"; do
 
   cp -f "${appimage}" "${work}/input.AppImage"
   chmod +x "${work}/input.AppImage"
-  (cd "${work}" && ./input.AppImage --appimage-extract >/dev/null)
+  (cd "${work}" && APPIMAGE_EXTRACT_AND_RUN=1 ./input.AppImage --appimage-extract >/dev/null)
 
   removed=0
   while IFS= read -r -d '' lib; do
@@ -63,7 +63,7 @@ for appimage in "${APPIMAGES[@]}"; do
   fi
 
   out="${work}/repacked.AppImage"
-  ARCH="${APPIMAGE_ARCH}" "${APPIMAGETOOL}" "${work}/squashfs-root" "${out}" >/dev/null
+  APPIMAGE_EXTRACT_AND_RUN=1 ARCH="${APPIMAGE_ARCH}" "${APPIMAGETOOL}" "${work}/squashfs-root" "${out}" >/dev/null
   install -m 755 "${out}" "${appimage}"
   echo "  repacked → ${appimage}"
 

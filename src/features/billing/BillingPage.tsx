@@ -121,44 +121,34 @@ export function BillingPage() {
     : null
 
   const viewingCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
-  const viewingPast =
-    year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1)
 
   const monthStats = useMemo(() => {
     const days = calendarQuery.data?.days ?? []
-    const nextDateByHost = new Map<string, string>()
-    for (const day of days) {
-      for (const h of day.hosts) {
-        if (h.is_next) nextDateByHost.set(h.id, day.date)
-      }
-    }
-
     let total = 0
-    let remaining = 0
     for (const day of days) {
       for (const h of day.hosts) {
         if (h.amount_converted == null) continue
         const amt = Number(h.amount_converted)
         if (!Number.isFinite(amt)) continue
         total += amt
-        if (h.is_next) {
-          remaining += amt
-          continue
-        }
-        if (h.next_renewal_at) {
-          if (day.date > h.next_renewal_at) remaining += amt
-          continue
-        }
-        const nextDate = nextDateByHost.get(h.id)
-        if (nextDate != null) {
-          if (day.date > nextDate) remaining += amt
-          continue
-        }
-        if (!viewingPast && !viewingCurrentMonth) remaining += amt
       }
     }
-    return { total, remaining, ready: Boolean(calendarQuery.data) }
-  }, [calendarQuery.data, viewingCurrentMonth, viewingPast])
+
+    // Remaining = hosts whose stored next renewal_at falls in this month (summary API).
+    // Calendar also lists paid/projected cycle marks; those must not inflate "left to pay".
+    let remaining = 0
+    for (const item of summaryQuery.data?.items ?? []) {
+      if (item.amount_converted == null) continue
+      const amt = Number(item.amount_converted)
+      if (Number.isFinite(amt)) remaining += amt
+    }
+
+    return {
+      total,
+      remaining,
+      ready: Boolean(calendarQuery.data && summaryQuery.data),
+    }
+  }, [calendarQuery.data, summaryQuery.data])
 
   function formatMoney(n: number) {
     return n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -201,8 +191,7 @@ export function BillingPage() {
                 <span className="font-mono text-base text-neon">{currency}</span>
               </p>
               <p className="mt-1 font-mono text-[10px] text-muted">
-                Next dues
-                {viewingCurrentMonth ? ' · includes overdue · excludes paid' : ''}
+                Hosts with next due in this month (excludes paid)
               </p>
             </div>
             <div className="rounded-lg border border-border bg-panel px-4 py-3">
